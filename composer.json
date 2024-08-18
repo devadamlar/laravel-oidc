@@ -13,14 +13,14 @@
         "phpseclib/phpseclib": "^3.0.37",
         "firebase/php-jwt": "^6.10.1",
         "guzzlehttp/guzzle": "^7.8.1",
-        "illuminate/support": "^10.15",
-        "illuminate/config": "^10.15",
-        "illuminate/http": "^10.15",
-        "illuminate/auth": "^10.15",
-        "illuminate/contracts": "^10.15",
-        "illuminate/cache": "^10.15",
-        "illuminate/filesystem": "^10.15",
-        "illuminate/events": "^10.15"
+        "illuminate/support": ">=10.15",
+        "illuminate/config": ">=10.15",
+        "illuminate/http": ">=10.15",
+        "illuminate/auth": ">=10.15",
+        "illuminate/contracts": ">=10.15",
+        "illuminate/cache": ">=10.15",
+        "illuminate/filesystem": ">=10.15",
+        "illuminate/events": ">=10.15"
 
     },
     "require-dev": {
