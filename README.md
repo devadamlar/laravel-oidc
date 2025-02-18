@@ -12,7 +12,7 @@ and offers flexibility for multi-tenant architectures by allowing configurations
    ```
 2. Publish the configuration file:
    ```bash
-   php artisan vendor:publish --provider="DevAdamlar\LaravelOidc\LaravelOidcServiceProvider
+   php artisan vendor:publish --provider="DevAdamlar\LaravelOidc\LaravelOidcServiceProvider"
    ```
 
 ## Usage
