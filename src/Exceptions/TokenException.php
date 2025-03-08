@@ -6,6 +6,4 @@ namespace DevAdamlar\LaravelOidc\Exceptions;
 
 use Illuminate\Auth\AuthenticationException;
 
-class TokenException extends AuthenticationException
-{
-}
+class TokenException extends AuthenticationException {}

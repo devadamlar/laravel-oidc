@@ -10,6 +10,7 @@ use DevAdamlar\LaravelOidc\Http\Introspection\ClientSecretPost;
 use DevAdamlar\LaravelOidc\Http\Introspection\Introspector;
 use DevAdamlar\LaravelOidc\Http\Introspection\PrivateKeyJwt;
 use Firebase\JWT\JWT;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
@@ -105,8 +106,9 @@ class IntrospectorTest extends TestCase
         $introspector->introspect($endpoint, $token);
 
         // Assert
-        Http::assertSent(function ($request) use ($endpoint, $token) {
+        Http::assertSent(function (Request $request) use ($endpoint, $token) {
             return $request->url() === $endpoint
+                && $request->isForm()
                 && $request['token'] === $token
                 && $request->hasHeader('Authorization')
                 && $request->header('Authorization')[0] === 'Basic '.base64_encode('client-id:client-secret');
@@ -127,8 +129,9 @@ class IntrospectorTest extends TestCase
         $introspector->introspect($endpoint, $token);
 
         // Assert
-        Http::assertSent(function ($request) use ($endpoint, $token) {
+        Http::assertSent(function (Request $request) use ($endpoint, $token) {
             return $request->url() === $endpoint
+                && $request->isForm()
                 && $request['token'] === $token
                 && $request['client_id'] === 'client-id'
                 && $request['client_secret'] === 'client-secret';
@@ -163,8 +166,9 @@ class IntrospectorTest extends TestCase
         $introspector->introspect($endpoint, $token);
 
         // Assert
-        Http::assertSent(function ($request) use ($endpoint, $token, $jwt) {
+        Http::assertSent(function (Request $request) use ($endpoint, $token, $jwt) {
             return $request->url() === $endpoint
+                && $request->isForm()
                 && $request['token'] === $token
                 && $request['client_assertion_type'] === 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
                 && $request['client_assertion'] === $jwt;
@@ -213,8 +217,9 @@ class IntrospectorTest extends TestCase
         $introspector->introspect($endpoint, $token);
 
         // Assert
-        Http::assertSent(function ($request) use ($endpoint, $token, $jwt) {
+        Http::assertSent(function (Request $request) use ($endpoint, $token, $jwt) {
             return $request->url() === $endpoint
+                && $request->isForm()
                 && $request['token'] === $token
                 && $request['client_assertion_type'] === 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
                 && $request['client_assertion'] === $jwt;
@@ -247,13 +252,16 @@ class IntrospectorTest extends TestCase
     {
         // Arrange
         $this->expectException(OidcServerException::class);
-        $this->expectExceptionMessage('Introspection request failed at https://test-server/introspect');
+        $this->expectExceptionMessage('Introspection request failed at https://test-server/introspect: {"error":"invalid_request","error_description":"Authentication failed."}');
         $this->configLoader->shouldReceive('get')
             ->with('introspection_auth_method')
             ->andReturn('client_secret_basic');
         $introspector = Introspector::make($this->configLoader);
         Http::fake([
-            'https://test-server/introspect' => Http::response(null, 500),
+            'https://test-server/introspect' => Http::response([
+                'error' => 'invalid_request',
+                'error_description' => 'Authentication failed.',
+            ], 401),
         ]);
 
         // Act

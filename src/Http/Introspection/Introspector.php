@@ -17,9 +17,7 @@ use stdClass;
 
 abstract class Introspector
 {
-    public function __construct(protected readonly ConfigLoader $configLoader)
-    {
-    }
+    public function __construct(protected readonly ConfigLoader $configLoader) {}
 
     public static function make(ConfigLoader $configLoader): self
     {
@@ -53,7 +51,8 @@ abstract class Introspector
         $response = $this->getRequest()->post($endpoint, $body);
 
         if ($response->failed()) {
-            throw new OidcServerException('Introspection request failed at '.$endpoint);
+            $body = empty($response->body()) ? $response->status() : $response->body();
+            throw new OidcServerException('Introspection request failed at '.$endpoint.': '.$body);
         }
 
         return $response->object();
@@ -61,7 +60,7 @@ abstract class Introspector
 
     protected function getRequest(): PendingRequest|Factory
     {
-        return Http::getFacadeRoot();
+        return Http::asForm();
     }
 
     protected function getBody(): array

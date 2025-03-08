@@ -13,8 +13,7 @@ class PublicKeyResolver
         private readonly string $publicKey,
         private readonly string $algorithm,
         private readonly string $disk
-    ) {
-    }
+    ) {}
 
     public static function make(string $publicKey, string $algorithm, string $disk): self
     {

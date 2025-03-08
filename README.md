@@ -131,7 +131,7 @@ will ignore whatever is set in the global configuration and use `https://tenant1
 
 You can publish the configuration file and refer to the documentation there for all available options:
 ```bash
-php artisan vendor:publish --provider="DevAdamlar\LaravelOidc\LaravelOidcServiceProvider
+php artisan vendor:publish --provider="DevAdamlar\LaravelOidc\LaravelOidcServiceProvider"
 ```
 
 Every configuration option in the published file is also available as a guard-level configuration.

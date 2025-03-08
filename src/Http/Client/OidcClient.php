@@ -16,9 +16,7 @@ class OidcClient
 {
     protected ?Issuer $issuer = null;
 
-    public function __construct(protected ConfigLoader $configLoader)
-    {
-    }
+    public function __construct(protected ConfigLoader $configLoader) {}
 
     public static function make(ConfigLoader $configLoader): self
     {

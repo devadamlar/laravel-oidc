@@ -163,7 +163,7 @@ class OidcClientTest extends TestCase
         $client->getIssuer();
     }
 
-    public function test_downloadKeys()
+    public function test_download_keys()
     {
         // Arrange
         $privateKey = openssl_pkey_new([

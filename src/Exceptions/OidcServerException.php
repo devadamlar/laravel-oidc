@@ -4,6 +4,4 @@ namespace DevAdamlar\LaravelOidc\Exceptions;
 
 use UnexpectedValueException;
 
-class OidcServerException extends UnexpectedValueException
-{
-}
+class OidcServerException extends UnexpectedValueException {}
