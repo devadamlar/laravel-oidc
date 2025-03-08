@@ -190,10 +190,12 @@ php artisan cache:forget https://your-issuer-url.com:jwks
 ## TODO
 
 - [ ] Place coverage, build, security, maintainability badges
+- [ ] Fix all PHPStan issues
 - [ ] Incorporate git hooks
 - [ ] Implement a CI/CD pipeline with GitHub Actions
 - [ ] Add a contribution guide
 - [ ] Dockerize the application
+- [ ] Write integration tests
 - [ ] Add a command to clear the cache
 - [ ] Add a hook for token validation check
 - [ ] Add a hook to clear the cache when the public keys change

@@ -53,8 +53,6 @@ class OidcGuard implements Guard
 
     protected string $signingAlgorithm;
 
-    protected ?string $keyMaterial;
-
     protected string $disk;
 
     protected ?string $audience;
