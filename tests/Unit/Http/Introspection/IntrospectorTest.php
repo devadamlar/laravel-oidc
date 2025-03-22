@@ -4,11 +4,13 @@ namespace DevAdamlar\LaravelOidc\Tests\Unit\Http\Introspection;
 
 use DevAdamlar\LaravelOidc\Config\ConfigLoader;
 use DevAdamlar\LaravelOidc\Exceptions\OidcServerException;
+use DevAdamlar\LaravelOidc\Http\Client\OidcClient;
 use DevAdamlar\LaravelOidc\Http\Introspection\ClientSecretBasic;
 use DevAdamlar\LaravelOidc\Http\Introspection\ClientSecretJwt;
 use DevAdamlar\LaravelOidc\Http\Introspection\ClientSecretPost;
 use DevAdamlar\LaravelOidc\Http\Introspection\Introspector;
 use DevAdamlar\LaravelOidc\Http\Introspection\PrivateKeyJwt;
+use DevAdamlar\LaravelOidc\Http\Issuer;
 use Firebase\JWT\JWT;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
@@ -184,6 +186,19 @@ class IntrospectorTest extends TestCase
         $this->configLoader->shouldReceive('get')
             ->with('introspection_auth_method')
             ->andReturn('private_key_jwt');
+
+        $issuer = new Issuer([
+            'issuer' => 'https://introspecting-server.test',
+            'jwks_uri' => 'https://introspecting-server.test/jwks',
+            'authorization_endpoint' => 'https://introspecting-server.test/auth',
+            'token_endpoint' => 'https://introspecting-server.test/token',
+            'introspection_endpoint' => $endpoint,
+        ]);
+
+        $this->mock(OidcClient::class, function ($mock) use ($issuer) {
+            $mock->shouldReceive('getIssuer')->andReturn($issuer);
+        });
+
         Carbon::setTestNow(now());
         Str::createUuidsUsing(function () use ($kid) {
             return $kid;
@@ -191,7 +206,7 @@ class IntrospectorTest extends TestCase
         $jwt = JWT::encode([
             'iss' => 'client-id',
             'sub' => 'client-id',
-            'aud' => 'https://introspecting-server.test',
+            'aud' => 'https://introspecting-server.test/token',
             'jti' => $kid,
             'exp' => now()->addMinute()->unix(),
             'nbf' => now()->unix(),

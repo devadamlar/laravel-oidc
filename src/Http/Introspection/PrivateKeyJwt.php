@@ -2,6 +2,7 @@
 
 namespace DevAdamlar\LaravelOidc\Http\Introspection;
 
+use DevAdamlar\LaravelOidc\Http\Client\OidcClient;
 use Firebase\JWT\JWT;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -13,10 +14,11 @@ class PrivateKeyJwt extends Introspector
         $disk = $this->configLoader->get('key_disk');
         $privateKeyPath = $this->configLoader->get('private_key');
         $signingKey = openssl_pkey_get_private(Storage::disk($disk)->get($privateKeyPath));
+        $client = OidcClient::make($this->configLoader);
         $jwt = JWT::encode([
             'iss' => $this->configLoader->get('client_id'),
             'sub' => $this->configLoader->get('client_id'),
-            'aud' => $this->configLoader->get('issuer'),
+            'aud' => $client->getIssuer()?->tokenEndpoint,
             'jti' => Str::uuid(),
             'exp' => now()->addMinute()->unix(),
             'nbf' => now()->unix(),
