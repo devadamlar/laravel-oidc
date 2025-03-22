@@ -126,6 +126,13 @@ trait ActingAs
         }
 
         $details = openssl_pkey_get_details($publicKey);
+        $n = self::base64urlEncode($details['rsa']['n']);
+        $e = self::base64urlEncode($details['rsa']['e']);
+
+        if (! $kid) {
+            $thumbprintJson = json_encode(['e' => $e, 'kty' => 'RSA', 'n' => $n], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            $kid = rtrim(strtr(base64_encode(hash('sha256', $thumbprintJson, true)), '+/', '-_'), '=');
+        }
 
         return [
             'keys' => [
@@ -134,8 +141,8 @@ trait ActingAs
                     'alg' => $alg,
                     'use' => 'sig',
                     'kty' => 'RSA',
-                    'n' => self::base64urlEncode($details['rsa']['n']),
-                    'e' => self::base64urlEncode($details['rsa']['e']),
+                    'n' => $n,
+                    'e' => $e,
                 ],
             ],
         ];
