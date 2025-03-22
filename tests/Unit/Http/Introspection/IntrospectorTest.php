@@ -11,6 +11,7 @@ use DevAdamlar\LaravelOidc\Http\Introspection\ClientSecretPost;
 use DevAdamlar\LaravelOidc\Http\Introspection\Introspector;
 use DevAdamlar\LaravelOidc\Http\Introspection\PrivateKeyJwt;
 use DevAdamlar\LaravelOidc\Http\Issuer;
+use DevAdamlar\LaravelOidc\Support\Key;
 use Firebase\JWT\JWT;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
@@ -211,7 +212,7 @@ class IntrospectorTest extends TestCase
             'exp' => now()->addMinute()->unix(),
             'nbf' => now()->unix(),
             'iat' => now()->unix(),
-        ], $this->introspectorPrivateKey, 'RS256');
+        ], $this->introspectorPrivateKey, 'RS256', Key::thumbprint($this->introspectorPrivateKey));
 
         $disk = 'custom-disk';
         Config::set('filesystems', [

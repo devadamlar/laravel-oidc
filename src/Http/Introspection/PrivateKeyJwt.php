@@ -3,6 +3,7 @@
 namespace DevAdamlar\LaravelOidc\Http\Introspection;
 
 use DevAdamlar\LaravelOidc\Http\Client\OidcClient;
+use DevAdamlar\LaravelOidc\Support\Key;
 use Firebase\JWT\JWT;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -15,6 +16,7 @@ class PrivateKeyJwt extends Introspector
         $privateKeyPath = $this->configLoader->get('private_key');
         $signingKey = openssl_pkey_get_private(Storage::disk($disk)->get($privateKeyPath));
         $client = OidcClient::make($this->configLoader);
+        $kid = Key::thumbprint(openssl_pkey_get_private($signingKey));
         $jwt = JWT::encode([
             'iss' => $this->configLoader->get('client_id'),
             'sub' => $this->configLoader->get('client_id'),
@@ -23,7 +25,7 @@ class PrivateKeyJwt extends Introspector
             'exp' => now()->addMinute()->unix(),
             'nbf' => now()->unix(),
             'iat' => now()->unix(),
-        ], $signingKey, 'RS256');
+        ], $signingKey, 'RS256', $kid);
 
         return [
             'client_assertion_type' => 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',

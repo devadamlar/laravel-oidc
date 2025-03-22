@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace DevAdamlar\LaravelOidc\Testing;
 
+use DevAdamlar\LaravelOidc\Support\Key;
 use Firebase\JWT\JWT;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use InvalidArgumentException;
 use OpenSSLAsymmetricKey;
 
 trait ActingAs
@@ -98,7 +97,7 @@ trait ActingAs
         string $issuer = 'http://oidc-server.test/auth',
         array $introspectionResponse = ['active' => true],
     ): string {
-        $jwks = self::getJwks();
+        $jwks = Key::jwks();
         Http::fake([
             '*/.well-known/openid-configuration' => Http::response([
                 'issuer' => $issuer,
@@ -111,45 +110,5 @@ trait ActingAs
         ]);
 
         return $jwks['keys'][0]['kid'];
-    }
-
-    /**
-     * @throws InvalidArgumentException
-     */
-    protected static function getJwks(?string $publicKeyPem = null, string $alg = 'RS256', ?string $kid = null): array
-    {
-        $disk = config('auth.guards.api.key_disk', config('oidc.key_disk', config('filesystems.default')));
-        $publicKey = openssl_pkey_get_public($publicKeyPem ?? Storage::disk($disk)->get('certs/public.pem'));
-
-        if (! $publicKey) {
-            [, $publicKey] = self::generateKeyPair();
-        }
-
-        $details = openssl_pkey_get_details($publicKey);
-        $n = self::base64urlEncode($details['rsa']['n']);
-        $e = self::base64urlEncode($details['rsa']['e']);
-
-        if (! $kid) {
-            $thumbprintJson = json_encode(['e' => $e, 'kty' => 'RSA', 'n' => $n], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-            $kid = rtrim(strtr(base64_encode(hash('sha256', $thumbprintJson, true)), '+/', '-_'), '=');
-        }
-
-        return [
-            'keys' => [
-                [
-                    'kid' => $kid ?? Str::uuid()->toString(),
-                    'alg' => $alg,
-                    'use' => 'sig',
-                    'kty' => 'RSA',
-                    'n' => $n,
-                    'e' => $e,
-                ],
-            ],
-        ];
-    }
-
-    private static function base64urlEncode($data): string
-    {
-        return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
     }
 }

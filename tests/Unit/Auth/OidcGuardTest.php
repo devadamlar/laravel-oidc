@@ -9,10 +9,10 @@ use DevAdamlar\LaravelOidc\Exceptions\TokenException;
 use DevAdamlar\LaravelOidc\Exceptions\UserNotFoundException;
 use DevAdamlar\LaravelOidc\Http\Client\OidcClient;
 use DevAdamlar\LaravelOidc\Http\Issuer;
+use DevAdamlar\LaravelOidc\Support\Key;
 use DevAdamlar\LaravelOidc\Tests\Models\User;
 use DevAdamlar\LaravelOidc\Tests\TestCase;
 use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
 use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -66,7 +66,7 @@ class OidcGuardTest extends TestCase
 
         return tap(parent::buildJwt($payload, $privateKey, $publicKey), function ($token) use ($mockRequest, $privateKey) {
             $this->partialMock(PublicKeyResolver::class, function (MockInterface $mock) use ($privateKey) {
-                $mock->shouldReceive('resolve')->andReturn(new Key(openssl_pkey_get_details($privateKey)['key'], 'RS256'));
+                $mock->shouldReceive('resolve')->andReturn(new \Firebase\JWT\Key(openssl_pkey_get_details($privateKey)['key'], 'RS256'));
             })->byDefault();
             if ($mockRequest) {
                 $this->request = $this->partialMock(Request::class, function (MockInterface $mock) use ($token) {
@@ -158,7 +158,7 @@ class OidcGuardTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Supplied public key is invalid.');
         $this->partialMock(PublicKeyResolver::class, function (MockInterface $mock) {
-            $mock->shouldReceive('resolve')->andReturn(new Key('some-junk', 'RS256'));
+            $mock->shouldReceive('resolve')->andReturn(new \Firebase\JWT\Key('some-junk', 'RS256'));
         });
         $this->config->shouldReceive('get')->with('public_key', Mockery::any())->andReturn('junk');
         $guard = new OidcGuard($this->provider, $this->request, 'api', $this->config);
@@ -331,7 +331,8 @@ class OidcGuardTest extends TestCase
                 'jwks_uri' => 'https://oidc-server.test/auth/jwks',
                 'authorization_endpoint' => 'https://oidc-server.test/auth/auth',
             ]))->byDefault();
-            $mock->shouldReceive('downloadKeys')->andReturn(self::getJwks(kid: $head->kid))->byDefault();
+            $mock->shouldReceive('downloadKeys')
+                ->andReturn(Key::jwks(kid: $head->kid))->byDefault();
             $mock->shouldReceive('introspect')->andReturn([
                 'active' => true,
                 'sub' => 'unique-id',
