@@ -37,7 +37,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | REQUIRED IF issuer is not set.
-    | This can be the key extract or a path to the key file.
+    | This can be either a Base64-encoded key body or a file path to a key in PEM format.
     |
     | Preference is given to the public key over issuer if both are set.
     |
@@ -66,7 +66,7 @@ return [
     | Information from the discovery document, if found, will also be used
     | to narrow down the supported auth methods for introspection.
     |
-    | `private_key` expects the path to the private key file of the RP
+    | `private_key` expects the path to the private key file of the RP in PEM format
     | and MUST be set IF the `introspection_auth_method` is `private_key_jwt`.
     |
     */
