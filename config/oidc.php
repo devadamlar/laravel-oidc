@@ -37,7 +37,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | REQUIRED IF issuer is not set.
-    | This can be either a Base64-encoded key body or a file path to a key in PEM format.
+    | This can be either a Base64-encoded DER or a file path to a key in PEM format.
     |
     | Preference is given to the public key over issuer if both are set.
     |

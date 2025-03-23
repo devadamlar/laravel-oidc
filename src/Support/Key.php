@@ -2,7 +2,6 @@
 
 namespace DevAdamlar\LaravelOidc\Support;
 
-use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use OpenSSLAsymmetricKey;
 
@@ -12,13 +11,17 @@ use OpenSSLAsymmetricKey;
 class Key
 {
     /**
+     * @param  array<array{pem: string, alg?:Alg}>  $keys
      * @return array{keys: list<array<string, string>>}
-     *
-     * @throws InvalidArgumentException
      */
-    public static function jwks(?string $alg = null, ?string $publicKeyPem = null, ?string $kid = null): array
+    public static function jwks(array $keys): array
     {
-        return ['keys' => [self::jwk($alg, $publicKeyPem, $kid)]];
+        $jwks = [];
+        foreach ($keys as $key) {
+            $jwks[] = self::jwk($key['pem'], $key['alg'] ?? null);
+        }
+
+        return ['keys' => $jwks];
     }
 
     /**
@@ -26,35 +29,17 @@ class Key
      *
      * @throws InvalidArgumentException
      */
-    public static function jwk(?string $alg = null, ?string $publicKeyPem = null, ?string $kid = null): array
+    public static function jwk(string $pem, ?Alg $alg = null): array
     {
-        /** @var string|null $disk */
-        $disk = config('auth.guards.api.key_disk', config('oidc.key_disk', config('filesystems.default')));
-        $pem = $publicKeyPem ?? ($alg ? null : Storage::disk($disk)->get('certs/public.pem'));
-
-        $publicKey = null;
-        if ($pem !== null) {
-            $parsed = openssl_pkey_get_public($pem);
-            if (! $parsed) {
-                throw new InvalidArgumentException('Invalid public key PEM.');
-            }
-            $publicKey = $parsed;
+        $parsed = openssl_pkey_get_public($pem);
+        if (! $parsed) {
+            throw new InvalidArgumentException('Invalid public key PEM.');
         }
+        $publicKey = $parsed;
 
-        if (! $publicKey) {
-            [, $publicKey] = match (true) {
-                $alg === null, str_starts_with($alg, 'RS') => self::generateKeyPair(),
-                str_starts_with($alg, 'ES') => self::generateEcKeyPair($alg),
-                default => throw new InvalidArgumentException("Unsupported algorithm $alg for key generation."),
-            };
-        }
-
+        /** @var array{type: int, key: string, rsa?: array{n: string, e: string}, ec?: array{curve_name?: string, x: string, y: string}} $details */
         $details = openssl_pkey_get_details($publicKey);
-        if (! is_array($details) || ! isset($details['type'])) {
-            throw new InvalidArgumentException('Invalid or unsupported key.');
-        }
 
-        /** @var int $type */
         $type = $details['type'];
         if (! in_array($type, [OPENSSL_KEYTYPE_RSA, OPENSSL_KEYTYPE_EC], true)) {
             throw new InvalidArgumentException('Unsupported key type.');
@@ -62,23 +47,17 @@ class Key
 
         $kty = $type === OPENSSL_KEYTYPE_RSA ? 'RSA' : 'EC';
 
-        if ($alg === null) {
-            $alg = $type === OPENSSL_KEYTYPE_RSA ? 'RS256' : match ($details['bits']) {
-                256 => 'ES256',
-                384 => 'ES384',
-                521 => 'ES512',
-                default => throw new InvalidArgumentException('Unsupported EC key size.'),
-            };
-        }
-
-        $kid ??= self::thumbprint($publicKey);
+        $kid = self::thumbprint($details);
 
         $jwk = [
             'kid' => $kid,
-            'alg' => $alg,
             'use' => 'sig',
             'kty' => $kty,
         ];
+
+        if ($alg !== null) {
+            $jwk['alg'] = $alg->value;
+        }
 
         if ($kty === 'RSA' && isset($details['rsa'])) {
             $jwk['n'] = self::base64url($details['rsa']['n']);
@@ -93,34 +72,25 @@ class Key
     }
 
     /**
-     * @throws InvalidArgumentException
+     * @param  array{type: int, key: string, rsa?: array{n: string, e: string}, ec?: array{curve_name?: string, x: string, y: string}}  $publicKey
      */
-    public static function thumbprint(OpenSSLAsymmetricKey|string $key): string
+    public static function thumbprint(array $publicKey): string
     {
-        if (is_string($key)) {
-            $parsed = openssl_pkey_get_private($key) ?: openssl_pkey_get_public($key);
-            if (! $parsed) {
-                throw new InvalidArgumentException('Invalid PEM key string provided.');
-            }
-            $key = $parsed;
+        $type = $publicKey['type'];
+        if ($type === OPENSSL_KEYTYPE_RSA && isset($publicKey['rsa'])) {
+            return self::rsaThumbprint($publicKey['rsa']);
+        }
+        if ($type === OPENSSL_KEYTYPE_EC && isset($publicKey['ec'])) {
+            return self::ecThumbprint($publicKey['ec']);
         }
 
-        $details = openssl_pkey_get_details($key);
-
-        $type = $details['type'];
-        if (! in_array($type, [OPENSSL_KEYTYPE_RSA, OPENSSL_KEYTYPE_EC], true)) {
-            throw new InvalidArgumentException('Unsupported key type.');
-        }
-
-        return $type === OPENSSL_KEYTYPE_RSA
-            ? self::rsaThumbprint($details['rsa'] ?? [])
-            : self::ecThumbprint($details['ec'] ?? []);
+        throw new InvalidArgumentException('Unsupported key type.');
     }
 
     /**
      * @param  array{n: string, e: string}  $rsa
      */
-    protected static function rsaThumbprint(array $rsa): string
+    private static function rsaThumbprint(array $rsa): string
     {
         $e = self::base64url($rsa['e']);
         $n = self::base64url($rsa['n']);
@@ -136,7 +106,7 @@ class Key
     /**
      * @param  array{x: string, y: string, curve_name?: string}  $ec
      */
-    protected static function ecThumbprint(array $ec): string
+    private static function ecThumbprint(array $ec): string
     {
         $x = self::base64url($ec['x']);
         $y = self::base64url($ec['y']);
@@ -156,11 +126,29 @@ class Key
     }
 
     /**
-     * @return array{OpenSSLAsymmetricKey, OpenSSLAsymmetricKey}
-     *
-     * @throws InvalidArgumentException
+     * @return array{type: int, key: string, rsa?: array{n: string, e: string}, ec?: array{curve_name?: string, x: string, y: string}}
      */
-    public static function generateKeyPair(): array
+    public static function publicKey(OpenSSLAsymmetricKey|string $privateKey): array
+    {
+        if (is_string($privateKey)) {
+            $privateKey = openssl_pkey_get_private($privateKey);
+        }
+        /** @var array{key: string}|false $details */
+        $details = $privateKey ? openssl_pkey_get_details($privateKey) : false;
+
+        $publicKey = $details ? openssl_pkey_get_public($details['key']) : false;
+
+        /** @var array{type: int, key: string, rsa?: array{n: string, e: string}, ec?: array{curve_name?: string, x: string, y: string}} $details */
+        $details = $publicKey ? openssl_pkey_get_details($publicKey) :
+            throw new InvalidArgumentException('Could not extract public key from private RSA key.');
+
+        return $details;
+    }
+
+    /**
+     * @return array{private: OpenSSLAsymmetricKey, public: array{type: int, key: string, rsa?: array{n: string, e: string}, ec?: array{curve_name?: string, x: string, y: string}}}
+     */
+    public static function generateRsaKeyPair(): array
     {
         $privateKey = openssl_pkey_new([
             'private_key_type' => OPENSSL_KEYTYPE_RSA,
@@ -171,31 +159,21 @@ class Key
             throw new InvalidArgumentException('Failed to generate RSA key pair.');
         }
 
-        $details = openssl_pkey_get_details($privateKey);
-        if (! is_array($details) || ! isset($details['key'])) {
-            throw new InvalidArgumentException('Could not extract public key from private RSA key.');
-        }
+        $publicKey = Key::publicKey($privateKey);
 
-        $publicKey = openssl_pkey_get_public($details['key']);
-        if (! $publicKey) {
-            throw new InvalidArgumentException('Failed to parse generated public RSA key.');
-        }
-
-        return [$privateKey, $publicKey];
+        return ['private' => $privateKey, 'public' => $publicKey];
     }
 
     /**
-     * @return array{OpenSSLAsymmetricKey, OpenSSLAsymmetricKey}
-     *
-     * @throws InvalidArgumentException
+     * @return array{private: OpenSSLAsymmetricKey, public: array{type: int, key: string, rsa?: array{n: string, e: string}, ec?: array{curve_name?: string, x: string, y: string}}}
      */
-    public static function generateEcKeyPair(string $alg): array
+    public static function generateEcKeyPair(Alg $alg): array
     {
         $curve = match ($alg) {
-            'ES256' => 'prime256v1',
-            'ES384' => 'secp384r1',
-            'ES512' => 'secp521r1',
-            default => throw new InvalidArgumentException("Unsupported EC algorithm $alg."),
+            Alg::ES256 => 'prime256v1',
+            Alg::ES384 => 'secp384r1',
+            Alg::ES512 => 'secp521r1',
+            Alg::ES256K => 'secp256k1',
         };
 
         $privateKey = openssl_pkey_new([
@@ -207,16 +185,8 @@ class Key
             throw new InvalidArgumentException('Failed to generate EC key pair.');
         }
 
-        $details = openssl_pkey_get_details($privateKey);
-        if (! is_array($details) || ! isset($details['key'])) {
-            throw new InvalidArgumentException('Could not extract public key from private EC key.');
-        }
+        $publicKey = self::publicKey($privateKey);
 
-        $publicKey = openssl_pkey_get_public($details['key']);
-        if (! $publicKey) {
-            throw new InvalidArgumentException('Failed to parse generated public EC key.');
-        }
-
-        return [$privateKey, $publicKey];
+        return ['private' => $privateKey, 'public' => $publicKey];
     }
 }

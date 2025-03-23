@@ -19,7 +19,7 @@ class ActingAsTest extends TestCase
 
     private function getPublicKeys(): array
     {
-        return JWK::parseKeySet(Http::get('http://oidc-server.test/auth/protocol/openid-connect/certs')->json());
+        return JWK::parseKeySet(Http::get('http://oidc-server.test/auth/protocol/openid-connect/certs')->json(), 'RS256');
     }
 
     public function test_should_set_authorization_header_and_authenticate_user()

@@ -22,6 +22,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -55,6 +56,10 @@ class OidcGuard implements Guard
 
     protected string $disk;
 
+    protected ?string $cacheDriver;
+
+    protected ?int $cacheTtl;
+
     protected ?string $audience;
 
     protected OidcClient $client;
@@ -68,6 +73,9 @@ class OidcGuard implements Guard
 
         $this->inputKey = $config->get('input_key');
         $this->disk = $config->get('key_disk');
+
+        $this->cacheDriver = $config->get('cache_driver');
+        $this->cacheTtl = $config->get('cache_ttl');
 
         // Authority
         $issuer = $config->get('issuer');
@@ -134,7 +142,7 @@ class OidcGuard implements Guard
      */
     private function validateJwt(string $token): ?stdClass
     {
-        $publicKeys = $this->getPublicKeys();
+        $publicKeys = $this->getPublicKeys($token);
         try {
             JWT::$leeway = $this->leeway;
 
@@ -148,16 +156,26 @@ class OidcGuard implements Guard
         }
     }
 
-    private function getPublicKeys(): array|Key
+    private function getPublicKeys(string $token): array|Key
     {
         if ($this->publicKey !== null) {
             return $this->publicKey->resolve();
         }
         if ($this->client->getIssuer() !== null) {
-            return JWK::parseKeySet($this->client->downloadKeys(), $this->signingAlgorithm);
+            $kid = $this->extractKid($token);
+            if (Cache::driver($this->cacheDriver)->has('laravel-oidc:'.$this->client->getIssuer()->issuer.':jwk:'.$kid)) {
+                return JWK::parseKey(Cache::driver($this->cacheDriver)->get('laravel-oidc:'.$this->client->getIssuer()->issuer.':jwk:'.$kid));
+            } else {
+                return JWK::parseKeySet($this->client->downloadKeys(), $this->signingAlgorithm);
+            }
         }
 
         throw new InvalidArgumentException('Issuer or public key is required to verify JWT signature.');
+    }
+
+    private function extractKid(string $jwt): ?string
+    {
+        return json_decode(base64_decode(explode('.', $jwt)[0]), true)['kid'] ?? null;
     }
 
     private function introspect(string $token): ?stdClass

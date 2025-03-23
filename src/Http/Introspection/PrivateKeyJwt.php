@@ -16,7 +16,7 @@ class PrivateKeyJwt extends Introspector
         $privateKeyPath = $this->configLoader->get('private_key');
         $signingKey = openssl_pkey_get_private(Storage::disk($disk)->get($privateKeyPath));
         $client = OidcClient::make($this->configLoader);
-        $kid = Key::thumbprint(openssl_pkey_get_private($signingKey));
+        $kid = Key::thumbprint(Key::publicKey($signingKey));
         $jwt = JWT::encode([
             'iss' => $this->configLoader->get('client_id'),
             'sub' => $this->configLoader->get('client_id'),

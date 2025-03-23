@@ -9,6 +9,7 @@ use DevAdamlar\LaravelOidc\Http\Introspection\ClientSecretPost;
 use DevAdamlar\LaravelOidc\Http\Issuer;
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -188,7 +189,6 @@ class OidcClientTest extends TestCase
                         'kty' => 'RSA',
                         'use' => 'sig',
                         'alg' => 'RS256',
-                        'kid' => 'key-id',
                         'n' => Str::toBase64($publicKey['n']),
                         'e' => Str::toBase64($publicKey['e']),
                     ],
@@ -203,17 +203,50 @@ class OidcClientTest extends TestCase
         ]));
 
         // Act
-        $client->downloadKeys($jwksUri);
-        $client->downloadKeys($jwksUri);
         $keys = $client->downloadKeys();
 
         // Assert
         $this->assertIsArray($keys);
         $this->assertArrayHasKey('keys', $keys);
         $this->assertCount(1, $keys['keys']);
-        $this->assertEquals('John Doe', JWT::decode($jwt, JWK::parseKeySet($keys))->name);
-        Http::assertSentCount(1);
-        $this->assertTrue(Cache::driver('custom_driver')->has('laravel-oidc:'.$this->issuer.':jwks'));
+        $this->assertEquals('John Doe', JWT::decode($jwt, JWK::parseKey($keys['keys'][0]))->name);
+        Http::assertSent(function (Request $request) {
+            return $request->url() === $this->issuer.'/jwks';
+        });
+    }
+
+    public function test_should_cache_jwk_if_kid_is_provided()
+    {
+        // Arrange
+        $jwk = [
+            'kty' => 'RSA',
+            'use' => 'sig',
+            'alg' => 'RS256',
+            'kid' => 'key-id',
+            'n' => 'key-modulus',
+            'e' => 'key-exponent',
+        ];
+
+        $jwksUri = $this->issuer.'/jwks';
+        Http::fake([
+            $jwksUri => Http::response([
+                'keys' => [
+                    $jwk,
+                ],
+            ]),
+        ]);
+        $client = new OidcClient($this->configLoader);
+        $client->setIssuer(new Issuer([
+            'issuer' => $this->issuer,
+            'jwks_uri' => $jwksUri,
+            'authorization_endpoint' => $this->issuer.'/auth',
+        ]));
+
+        // Act
+        $client->downloadKeys();
+
+        // Assert
+        $this->assertEquals($jwk, Cache::driver('custom_driver')->get('laravel-oidc:'.$this->issuer.':jwk:key-id'));
     }
 
     public function test_should_not_cache_keys_if_request_fails_or_returns_empty_body()

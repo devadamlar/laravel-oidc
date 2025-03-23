@@ -204,6 +204,7 @@ class IntrospectorTest extends TestCase
         Str::createUuidsUsing(function () use ($kid) {
             return $kid;
         });
+        $publicKey = openssl_pkey_get_details($this->introspectorPrivateKey);
         $jwt = JWT::encode([
             'iss' => 'client-id',
             'sub' => 'client-id',
@@ -212,7 +213,7 @@ class IntrospectorTest extends TestCase
             'exp' => now()->addMinute()->unix(),
             'nbf' => now()->unix(),
             'iat' => now()->unix(),
-        ], $this->introspectorPrivateKey, 'RS256', Key::thumbprint($this->introspectorPrivateKey));
+        ], $this->introspectorPrivateKey, 'RS256', Key::thumbprint($publicKey));
 
         $disk = 'custom-disk';
         Config::set('filesystems', [

@@ -9,14 +9,17 @@ use DevAdamlar\LaravelOidc\Exceptions\TokenException;
 use DevAdamlar\LaravelOidc\Exceptions\UserNotFoundException;
 use DevAdamlar\LaravelOidc\Http\Client\OidcClient;
 use DevAdamlar\LaravelOidc\Http\Issuer;
-use DevAdamlar\LaravelOidc\Support\Key;
 use DevAdamlar\LaravelOidc\Tests\Models\User;
 use DevAdamlar\LaravelOidc\Tests\TestCase;
 use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Mockery;
 use Mockery\MockInterface;
@@ -62,11 +65,11 @@ class OidcGuardTest extends TestCase
         array $payload = [],
         bool $mockRequest = true
     ): string {
-        [$privateKey, $publicKey] = self::generateKeyPair();
+        ['private' => $privateKey] = \DevAdamlar\LaravelOidc\Support\Key::generateRsaKeyPair();
 
-        return tap(parent::buildJwt($payload, $privateKey, $publicKey), function ($token) use ($mockRequest, $privateKey) {
+        return tap(parent::buildJwt($payload, $privateKey), function ($token) use ($mockRequest, $privateKey) {
             $this->partialMock(PublicKeyResolver::class, function (MockInterface $mock) use ($privateKey) {
-                $mock->shouldReceive('resolve')->andReturn(new \Firebase\JWT\Key(openssl_pkey_get_details($privateKey)['key'], 'RS256'));
+                $mock->shouldReceive('resolve')->andReturn(new Key(openssl_pkey_get_details($privateKey)['key'], 'RS256'));
             })->byDefault();
             if ($mockRequest) {
                 $this->request = $this->partialMock(Request::class, function (MockInterface $mock) use ($token) {
@@ -158,7 +161,7 @@ class OidcGuardTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Supplied public key is invalid.');
         $this->partialMock(PublicKeyResolver::class, function (MockInterface $mock) {
-            $mock->shouldReceive('resolve')->andReturn(new \Firebase\JWT\Key('some-junk', 'RS256'));
+            $mock->shouldReceive('resolve')->andReturn(new Key('some-junk', 'RS256'));
         });
         $this->config->shouldReceive('get')->with('public_key', Mockery::any())->andReturn('junk');
         $guard = new OidcGuard($this->provider, $this->request, 'api', $this->config);
@@ -230,6 +233,35 @@ class OidcGuardTest extends TestCase
 
         // Assert
         $this->assertSame($this->user, $result);
+    }
+
+    public function test_should_use_jwk_from_cache_if_available()
+    {
+        // Arrange
+        $jwk = [
+            'kty' => 'RSA',
+            'use' => 'sig',
+            'alg' => 'RS256',
+            'kid' => 'z4OhUbFE0BeUdtxEe3wPb1ThZZkzyem0S25eNvSi-RQ',
+            'n' => 'u1SU1LfVLPHCozMxH2Mo4lgOEePzNm0tRgeLezV6ffAt0gunVTLw7onLRnrq0_IzW7yWR7QkrmBL7jTKEn5u-qKhbwKfBstIs-bMY2Zkp18gnTxKLxoS2tFczGkPLPgizskuemMghRniWaoLcyehkd3qqGElvW_VDL5AaWTg0nLVkjRo9z-40RQzuVaE8AkAFmxZzow3x-VJYKdjykkJ0iT9wCS0DRTXu269V264Vf_3jvredZiKRkgwlL9xNAwxXFg0x_XFw005UWVRIkdgcKWTjpBP2dPwVZ4WWC-9aGVd-Gyn1o0CLelf4rEjGoXbAAEgAqeGUxrcIlbjXfbcmw',
+            'e' => 'AQAB',
+        ];
+        Cache::put('laravel-oidc:http://oidc-server.test/auth:jwk:'.$jwk['kid'], $jwk);
+        $this->config->shouldReceive('get')->with('public_key', Mockery::any())->andReturnNull();
+        $this->config
+            ->shouldReceive('get')
+            ->with('issuer')
+            ->andReturn('http://oidc-server.test/auth');
+        $this->request->shouldReceive('bearerToken')->andReturn('eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ino0T2hVYkZFMEJlVWR0eEVlM3dQYjFUaFpaa3p5ZW0wUzI1ZU52U2ktUlEifQ.eyJzdWIiOiJ1bmlxdWUtaWQifQ.BSt2Xlc5hzg1ZB6U7L708ahS6bT3b3QaZgYhBuNu2LopDug8uGskwiBxWSRxAYTpCv4PPvCwhOrj7bEo00iAtX2iHxVG7bpE-NKtbWxMcuS8WMQUYs6NNSMZ2cdCNYfPNuoqtPJv0o0a7RnSsFSaEYeUOcprgL3B3vruIg4PEOM7C4d8qRLh7myxewSP0ypLTQIUvc6ND4kcwXd4jf5xu9Dz66O0Zw7Sza0RZE9HyYvgOtGvMxhSgt__8ZIjq9VtH7grdgG9X9ywfhh7PuKhUb9qMcMUpWqLKS6Iow0QViGj7YhzdFOgsp28dCECuMR9-wNdc_-yiIku8XUAD9_G6Q');
+        $guard = new OidcGuard($this->provider, $this->request, 'api', $this->config);
+
+        // Act
+        $guard->user();
+
+        // Assert
+        Http::assertNotSent(function (\Illuminate\Http\Client\Request $request) {
+            return $request->url() === 'http://oidc-server.test/auth/protocol/openid-connect/certs';
+        });
     }
 
     public function test_should_throw_not_found_exception_if_token_user_not_found()
@@ -325,14 +357,18 @@ class OidcGuardTest extends TestCase
         $token = $this->createToken(['sub' => 'unique-id']);
         [$head64] = explode('.', $token);
         $head = JWT::jsonDecode(JWT::urlsafeB64Decode($head64));
-        $this->mock(OidcClient::class, function (MockInterface $mock) use ($head) {
+        $this->mock(OidcClient::class, function (MockInterface $mock) {
             $mock->shouldReceive('getIssuer')->andReturn(new Issuer([
                 'issuer' => 'https://oidc-server.test/auth',
                 'jwks_uri' => 'https://oidc-server.test/auth/jwks',
                 'authorization_endpoint' => 'https://oidc-server.test/auth/auth',
             ]))->byDefault();
             $mock->shouldReceive('downloadKeys')
-                ->andReturn(Key::jwks(kid: $head->kid))->byDefault();
+                ->andReturn([
+                    'keys' => [
+                        \DevAdamlar\LaravelOidc\Support\Key::jwk(Storage::get('certs/public.pem')),
+                    ],
+                ])->byDefault();
             $mock->shouldReceive('introspect')->andReturn([
                 'active' => true,
                 'sub' => 'unique-id',
