@@ -164,7 +164,7 @@ class OidcGuard implements Guard
         if ($this->client->getIssuer() !== null) {
             $kid = $this->extractKid($token);
             if (Cache::driver($this->cacheDriver)->has('laravel-oidc:'.$this->client->getIssuer()->issuer.':jwk:'.$kid)) {
-                return JWK::parseKey(Cache::driver($this->cacheDriver)->get('laravel-oidc:'.$this->client->getIssuer()->issuer.':jwk:'.$kid));
+                return JWK::parseKey(Cache::driver($this->cacheDriver)->get('laravel-oidc:'.$this->client->getIssuer()->issuer.':jwk:'.$kid), $this->signingAlgorithm);
             } else {
                 return JWK::parseKeySet($this->client->downloadKeys(), $this->signingAlgorithm);
             }
