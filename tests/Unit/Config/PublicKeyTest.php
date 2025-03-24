@@ -6,6 +6,7 @@ use DevAdamlar\LaravelOidc\Config\PublicKeyResolver;
 use DevAdamlar\LaravelOidc\Support\Key;
 use DevAdamlar\LaravelOidc\Tests\TestCase;
 use Firebase\JWT\JWT;
+use Illuminate\Support\Facades\Storage;
 
 class PublicKeyTest extends TestCase
 {
@@ -32,10 +33,12 @@ class PublicKeyTest extends TestCase
     public function test_reads_key_from_file_if_input_is_file(): void
     {
         // Arrange
-        ['private' => $privateKey] = Key::generateRsaKeyPair();
+        ['private' => $privateKey, 'public' => $publicKey] = Key::generateRsaKeyPair();
         $token = self::buildJwt([
             'sub' => 'some-uuid',
         ], $privateKey);
+        Storage::fake('local');
+        Storage::disk('local')->put('certs/public.pem', $publicKey['key']);
         $resolver = PublicKeyResolver::make('certs/public.pem', 'RS256', 'local');
 
         // Act
@@ -51,7 +54,7 @@ class PublicKeyTest extends TestCase
         $resolver = PublicKeyResolver::make('certs/not-found.pem', 'RS256', 'local');
 
         // Assert
-        $this->expectExceptionMessage('Certificate file certs/not-found.pem not found.');
+        $this->expectExceptionMessage('Key file certs/not-found.pem not found.');
 
         // Act
         $resolver->resolve();

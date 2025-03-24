@@ -72,14 +72,13 @@ class OidcClient
     /**
      * @throws OidcServerException
      */
-    public function downloadKeys(?string $endpoint = null): array
+    public function downloadKeys(): array
     {
         $cache = Cache::driver($this->configLoader->get('cache_driver'));
         $ttl = $this->configLoader->get('cache_ttl');
         $issuer = $this->getIssuer();
 
-        // Always fetch JWKS from the endpoint
-        $response = Http::get($endpoint ?? $issuer->jwksUri);
+        $response = Http::get($issuer->jwksUri);
 
         if ($response->failed() || empty($response->json())) {
             throw new OidcServerException('Failed to fetch public keys at '.$issuer->jwksUri.'.');
