@@ -175,7 +175,7 @@ class OidcGuard implements Guard
 
     private function extractKid(string $jwt): ?string
     {
-        return json_decode(base64_decode(explode('.', $jwt)[0]), true)['kid'] ?? null;
+        return JWT::jsonDecode(JWT::urlsafeB64Decode((explode('.', $jwt)[0])))->kid ?? null;
     }
 
     private function introspect(string $token): ?stdClass
