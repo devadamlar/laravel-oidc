@@ -14,6 +14,7 @@ class PrivateKeyJwt extends Introspector
     {
         $disk = $this->configLoader->get('key_disk');
         $privateKeyPath = $this->configLoader->get('private_key');
+        $signingAlgorithm = $this->configLoader->get('signing_algorithm');
         $signingKey = openssl_pkey_get_private(Storage::disk($disk)->get($privateKeyPath));
         $client = OidcClient::make($this->configLoader);
         $kid = Key::thumbprint(Key::publicKey($signingKey));
@@ -25,7 +26,7 @@ class PrivateKeyJwt extends Introspector
             'exp' => now()->addMinute()->unix(),
             'nbf' => now()->unix(),
             'iat' => now()->unix(),
-        ], $signingKey, 'RS256', $kid);
+        ], $signingKey, $signingAlgorithm, $kid);
 
         return [
             'client_assertion_type' => 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',

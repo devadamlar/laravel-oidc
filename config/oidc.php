@@ -23,7 +23,7 @@ return [
     | to introspect the token if introspection is enabled.
     |
     | All the above details are part of the OIDC specification,
-    |, so this package can work with any OIDC compliant provider.
+    | so this package can work with any OIDC compliant provider.
     |
     | Responses from these endpoints will be cached.
     |
@@ -69,6 +69,9 @@ return [
     | `private_key` expects the path to the private key file of the RP in PEM format
     | and MUST be set IF the `introspection_auth_method` is `private_key_jwt`.
     |
+    | `rp_jwks_path` can be set to expose a route path for obtaining the JWKS corresponding to
+    | all private keys defined in the global config and individual guards.
+    |
     */
 
     'use_introspection' => env('OIDC_USE_INTROSPECTION', false),
@@ -76,6 +79,7 @@ return [
     'client_id' => env('OIDC_CLIENT_ID'),
     'client_secret' => env('OIDC_CLIENT_SECRET'),
     'private_key' => env('OIDC_PRIVATE_KEY'),
+    'rp_jwks_path' => env('OIDC_RP_JWKS_PATH'),
 
     /*
     |--------------------------------------------------------------------------
@@ -129,15 +133,10 @@ return [
     | Cache configuration
     |--------------------------------------------------------------------------
     |
-    | Discovery document and JWKS from the issuer will be cached to reduce the
-    | number of HTTP requests made to the issuer.
+    | The issuer's discovery document and JWKs, along with the RP's JWKs, will be cached
+    | to minimize HTTP requests to the issuer and reduce RP-side JWK computation.
     |
     | You can control the store and the TTL of the cache here.
-    |
-    | Make sure to clear the cache when the issuer rotates its keys.
-    | Cached data for a given issuer can be cleared by running
-    |
-    | `php artisan cache:forget <issuer>*`.
     |
     */
 

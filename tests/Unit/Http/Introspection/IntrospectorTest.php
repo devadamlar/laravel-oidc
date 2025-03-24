@@ -187,6 +187,9 @@ class IntrospectorTest extends TestCase
         $this->configLoader->shouldReceive('get')
             ->with('introspection_auth_method')
             ->andReturn('private_key_jwt');
+        $this->configLoader->shouldReceive('get')
+            ->with('signing_algorithm')
+            ->andReturn('RS256');
 
         $issuer = new Issuer([
             'issuer' => 'https://introspecting-server.test',
