@@ -108,12 +108,12 @@ class OidcClient
 
         $endpoint = $endpoint ?? $this->getIssuer()?->introspectionEndpoint;
 
-        $introspector = Introspector::make($this->configLoader);
-
         if ($endpoint === null) {
             throw new InvalidArgumentException('No introspection endpoint found');
         }
 
-        return $introspector->introspect($endpoint, $token, $tokenTypeHint);
+        $introspector = Introspector::make($this->configLoader, $endpoint);
+
+        return $introspector->introspect($token, $tokenTypeHint);
     }
 }

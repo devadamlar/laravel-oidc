@@ -308,14 +308,8 @@ class OidcClientTest extends TestCase
         // Arrange
         $token = 'token';
         $this->partialMock(ClientSecretPost::class, function ($mock) use ($token) {
-            $mock->shouldReceive('get')
-                ->with('client_id')
-                ->andReturn('client-id');
-            $mock->shouldReceive('get')
-                ->with('client_secret')
-                ->andReturn('client-secret');
             $mock->shouldReceive('introspect')
-                ->with($this->issuer.'/introspect', $token, 'access_token')
+                ->with($token, 'access_token')
                 ->once()
                 ->andReturn((object) ['active' => true]);
         });

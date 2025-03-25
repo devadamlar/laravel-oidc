@@ -24,7 +24,7 @@ class PublicKeyResolver
     {
         if ($this->isPath($this->publicKey)) {
             if (($material = Storage::disk($this->disk)->get($this->publicKey)) === null) {
-                throw new InvalidArgumentException('Key file '.$this->publicKey.' not found.');
+                throw new InvalidArgumentException('File `'.$this->publicKey.'` not found in `'.$this->disk.'` disk.');
             }
 
             return new Key($material, $this->algorithm);

@@ -30,6 +30,8 @@ class IntrospectorTest extends TestCase
 
     private OpenSSLAsymmetricKey $introspectorPrivateKey;
 
+    private string $endpoint = 'https://introspecting-server.test/introspect';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -70,7 +72,7 @@ class IntrospectorTest extends TestCase
             ->andReturn($authMethod);
 
         // Act
-        $introspector = Introspector::make($this->configLoader);
+        $introspector = Introspector::make($this->configLoader, $this->endpoint);
 
         // Assert
         $this->assertInstanceOf($expectedClass, $introspector);
@@ -92,25 +94,24 @@ class IntrospectorTest extends TestCase
             ->andReturn($authMethod);
 
         // Act
-        Introspector::make($this->configLoader);
+        Introspector::make($this->configLoader, $this->endpoint);
     }
 
     public function test_introspector_with_client_secret_basic()
     {
         // Arrange
-        $endpoint = 'https://introspecting-server.test/introspect';
         $token = 'token';
         $this->configLoader->shouldReceive('get')
             ->with('introspection_auth_method')
             ->andReturn('client_secret_basic');
-        $introspector = Introspector::make($this->configLoader);
+        $introspector = Introspector::make($this->configLoader, $this->endpoint);
 
         // Act
-        $introspector->introspect($endpoint, $token);
+        $introspector->introspect($token);
 
         // Assert
-        Http::assertSent(function (Request $request) use ($endpoint, $token) {
-            return $request->url() === $endpoint
+        Http::assertSent(function (Request $request) use ($token) {
+            return $request->url() === $this->endpoint
                 && $request->isForm()
                 && $request['token'] === $token
                 && $request->hasHeader('Authorization')
@@ -126,14 +127,14 @@ class IntrospectorTest extends TestCase
         $this->configLoader->shouldReceive('get')
             ->with('introspection_auth_method')
             ->andReturn('client_secret_post');
-        $introspector = Introspector::make($this->configLoader);
+        $introspector = Introspector::make($this->configLoader, $this->endpoint);
 
         // Act
-        $introspector->introspect($endpoint, $token);
+        $introspector->introspect($token);
 
         // Assert
-        Http::assertSent(function (Request $request) use ($endpoint, $token) {
-            return $request->url() === $endpoint
+        Http::assertSent(function (Request $request) use ($token) {
+            return $request->url() === $this->endpoint
                 && $request->isForm()
                 && $request['token'] === $token
                 && $request['client_id'] === 'client-id'
@@ -144,7 +145,6 @@ class IntrospectorTest extends TestCase
     public function test_introspector_with_client_secret_jwt()
     {
         // Arrange
-        $endpoint = 'https://introspecting-server.test/introspect';
         $token = 'token';
         $kid = fake()->uuid();
         $this->configLoader->shouldReceive('get')
@@ -163,14 +163,14 @@ class IntrospectorTest extends TestCase
             'nbf' => now()->unix(),
             'iat' => now()->unix(),
         ], 'client-secret', 'HS256');
-        $introspector = Introspector::make($this->configLoader);
+        $introspector = Introspector::make($this->configLoader, $this->endpoint);
 
         // Act
-        $introspector->introspect($endpoint, $token);
+        $introspector->introspect($token);
 
         // Assert
-        Http::assertSent(function (Request $request) use ($endpoint, $token, $jwt) {
-            return $request->url() === $endpoint
+        Http::assertSent(function (Request $request) use ($token, $jwt) {
+            return $request->url() === $this->endpoint
                 && $request->isForm()
                 && $request['token'] === $token
                 && $request['client_assertion_type'] === 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
@@ -181,9 +181,8 @@ class IntrospectorTest extends TestCase
     public function test_introspector_with_private_key_jwt()
     {
         // Arrange
-        $endpoint = 'https://introspecting-server.test/introspect';
         $token = 'token';
-        $kid = fake()->uuid();
+        $jti = fake()->uuid();
         $this->configLoader->shouldReceive('get')
             ->with('introspection_auth_method')
             ->andReturn('private_key_jwt');
@@ -199,7 +198,7 @@ class IntrospectorTest extends TestCase
             'jwks_uri' => 'https://introspecting-server.test/jwks',
             'authorization_endpoint' => 'https://introspecting-server.test/auth',
             'token_endpoint' => 'https://introspecting-server.test/token',
-            'introspection_endpoint' => $endpoint,
+            'introspection_endpoint' => $this->endpoint,
         ]);
 
         $this->mock(OidcClient::class, function ($mock) use ($issuer) {
@@ -207,15 +206,15 @@ class IntrospectorTest extends TestCase
         });
 
         Carbon::setTestNow(now());
-        Str::createUuidsUsing(function () use ($kid) {
-            return $kid;
+        Str::createUuidsUsing(function () use ($jti) {
+            return $jti;
         });
         $publicKey = openssl_pkey_get_details($this->introspectorPrivateKey);
         $jwt = JWT::encode([
             'iss' => 'client-id',
             'sub' => 'client-id',
-            'aud' => 'https://introspecting-server.test/token',
-            'jti' => $kid,
+            'aud' => $this->endpoint,
+            'jti' => $jti,
             'exp' => now()->addMinute()->unix(),
             'nbf' => now()->unix(),
             'iat' => now()->unix(),
@@ -234,14 +233,14 @@ class IntrospectorTest extends TestCase
         Config::set('oidc.key_disk', $disk);
         $this->configLoader->shouldReceive('get')->with('key_disk')->andReturn($disk);
 
-        $introspector = Introspector::make($this->configLoader);
+        $introspector = Introspector::make($this->configLoader, $this->endpoint);
 
         // Act
-        $introspector->introspect($endpoint, $token);
+        $introspector->introspect($token);
 
         // Assert
-        Http::assertSent(function (Request $request) use ($endpoint, $token, $jwt) {
-            return $request->url() === $endpoint
+        Http::assertSent(function (Request $request) use ($token, $jwt) {
+            return $request->url() === $this->endpoint
                 && $request->isForm()
                 && $request['token'] === $token
                 && $request['client_assertion_type'] === 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
@@ -252,9 +251,8 @@ class IntrospectorTest extends TestCase
     public function test_introspector_with_private_key_jwt_fallbacks_to_signing_algorithm()
     {
         // Arrange
-        $endpoint = 'https://introspecting-server.test/introspect';
         $token = 'token';
-        $kid = fake()->uuid();
+        $jti = fake()->uuid();
         $this->configLoader->shouldReceive('get')
             ->with('introspection_auth_method')
             ->andReturn('private_key_jwt');
@@ -270,7 +268,7 @@ class IntrospectorTest extends TestCase
             'jwks_uri' => 'https://introspecting-server.test/jwks',
             'authorization_endpoint' => 'https://introspecting-server.test/auth',
             'token_endpoint' => 'https://introspecting-server.test/token',
-            'introspection_endpoint' => $endpoint,
+            'introspection_endpoint' => $this->endpoint,
         ]);
 
         $this->mock(OidcClient::class, function ($mock) use ($issuer) {
@@ -278,15 +276,15 @@ class IntrospectorTest extends TestCase
         });
 
         Carbon::setTestNow(now());
-        Str::createUuidsUsing(function () use ($kid) {
-            return $kid;
+        Str::createUuidsUsing(function () use ($jti) {
+            return $jti;
         });
         $publicKey = openssl_pkey_get_details($this->introspectorPrivateKey);
         $jwt = JWT::encode([
             'iss' => 'client-id',
             'sub' => 'client-id',
-            'aud' => 'https://introspecting-server.test/token',
-            'jti' => $kid,
+            'aud' => $this->endpoint,
+            'jti' => $jti,
             'exp' => now()->addMinute()->unix(),
             'nbf' => now()->unix(),
             'iat' => now()->unix(),
@@ -305,19 +303,72 @@ class IntrospectorTest extends TestCase
         Config::set('oidc.key_disk', $disk);
         $this->configLoader->shouldReceive('get')->with('key_disk')->andReturn($disk);
 
-        $introspector = Introspector::make($this->configLoader);
+        $introspector = Introspector::make($this->configLoader, $this->endpoint);
 
         // Act
-        $introspector->introspect($endpoint, $token);
+        $introspector->introspect($token);
 
         // Assert
-        Http::assertSent(function (Request $request) use ($endpoint, $token, $jwt) {
-            return $request->url() === $endpoint
+        Http::assertSent(function (Request $request) use ($token, $jwt) {
+            return $request->url() === $this->endpoint
                 && $request->isForm()
                 && $request['token'] === $token
                 && $request['client_assertion_type'] === 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
                 && $request['client_assertion'] === $jwt;
         });
+    }
+
+    public function test_introspector_with_private_key_jwt_with_non_existing_private_key()
+    {
+        // Arrange
+        $token = 'token';
+        $this->configLoader->shouldReceive('get')
+            ->with('introspection_auth_method')
+            ->andReturn('private_key_jwt');
+        $this->configLoader->shouldReceive('get')
+            ->with('rp_signing_algorithm')
+            ->andReturn('RS256');
+        $this->configLoader->shouldReceive('get')
+            ->with('private_key')
+            ->andReturn('non-existing-file.pem');
+
+        $this->configLoader->shouldReceive('get')->with('key_disk')->andReturn('local');
+
+        $introspector = Introspector::make($this->configLoader, $this->endpoint);
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('File `non-existing-file.pem` not found in `local` disk.');
+
+        // Act
+        $introspector->introspect($token);
+    }
+
+    public function test_introspector_with_private_key_jwt_with_invalid_private_key()
+    {
+        // Arrange
+        $token = 'token';
+        $this->configLoader->shouldReceive('get')
+            ->with('introspection_auth_method')
+            ->andReturn('private_key_jwt');
+        $this->configLoader->shouldReceive('get')
+            ->with('rp_signing_algorithm')
+            ->andReturn('RS256');
+        $this->configLoader->shouldReceive('get')
+            ->with('private_key')
+            ->andReturn('invalid.pem');
+
+        Carbon::setTestNow(now());
+
+        $this->configLoader->shouldReceive('get')->with('key_disk')->andReturn('local');
+
+        Storage::fake('local');
+        Storage::put('invalid.pem', 'invalid');
+
+        $introspector = Introspector::make($this->configLoader, $this->endpoint);
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Given private key is not a valid PEM.');
+
+        // Act
+        $introspector->introspect($token);
     }
 
     /**
@@ -336,7 +387,7 @@ class IntrospectorTest extends TestCase
         $this->configLoader->shouldReceive('get')
             ->with($missingConfig)
             ->andReturn(null);
-        $introspector = Introspector::make($this->configLoader);
+        $introspector = Introspector::make($this->configLoader, $this->endpoint);
 
         // Act
         $introspector->introspect('https://introspecting-server.test/introspect', 'token');
@@ -350,7 +401,7 @@ class IntrospectorTest extends TestCase
         $this->configLoader->shouldReceive('get')
             ->with('introspection_auth_method')
             ->andReturn('client_secret_basic');
-        $introspector = Introspector::make($this->configLoader);
+        $introspector = Introspector::make($this->configLoader, 'https://test-server/introspect');
         Http::fake([
             'https://test-server/introspect' => Http::response([
                 'error' => 'invalid_request',
@@ -359,7 +410,7 @@ class IntrospectorTest extends TestCase
         ]);
 
         // Act
-        $introspector->introspect('https://test-server/introspect', 'token');
+        $introspector->introspect('token');
     }
 
     public static function introspectionAuthMethodProvider(): array

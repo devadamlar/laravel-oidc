@@ -54,7 +54,7 @@ class PublicKeyTest extends TestCase
         $resolver = PublicKeyResolver::make('certs/not-found.pem', 'RS256', 'local');
 
         // Assert
-        $this->expectExceptionMessage('Key file certs/not-found.pem not found.');
+        $this->expectExceptionMessage('File `certs/not-found.pem` not found in `local` disk.');
 
         // Act
         $resolver->resolve();
