@@ -17,9 +17,9 @@ use stdClass;
 
 abstract class Introspector
 {
-    public function __construct(protected readonly ConfigLoader $configLoader) {}
+    public function __construct(protected readonly ConfigLoader $configLoader, protected readonly string $endpoint) {}
 
-    public static function make(ConfigLoader $configLoader): self
+    public static function make(ConfigLoader $configLoader, string $endpoint): self
     {
         /** @var string|null $type */
         $type = $configLoader->get('introspection_auth_method');
@@ -29,13 +29,16 @@ abstract class Introspector
         }
         $class = __NAMESPACE__.'\\'.Str::studly($type);
         try {
-            return app()->has($class) ? app()->get($class) : app()->make($class, ['configLoader' => $configLoader]);
+            return app()->has($class) ? app()->get($class) : app()->make($class, [
+                'configLoader' => $configLoader,
+                'endpoint' => $endpoint,
+            ]);
         } catch (Error|BindingResolutionException|ContainerExceptionInterface|NotFoundExceptionInterface) {
             throw new InvalidArgumentException($errorMessage);
         }
     }
 
-    public function introspect(string $endpoint, string $token, ?string $tokenTypeHint = null): ?stdClass
+    public function introspect(string $token, ?string $tokenTypeHint = null): ?stdClass
     {
         foreach ($this->getRequired() as $key) {
             if (empty($this->configLoader->get($key))) {
@@ -48,11 +51,11 @@ abstract class Introspector
             'token_type_hint' => $tokenTypeHint,
         ], $this->getBody());
 
-        $response = $this->getRequest()->post($endpoint, $body);
+        $response = $this->getRequest()->post($this->endpoint, $body);
 
         if ($response->failed()) {
             $body = empty($response->body()) ? $response->status() : $response->body();
-            throw new OidcServerException('Introspection request failed at '.$endpoint.': '.$body);
+            throw new OidcServerException('Introspection request failed at '.$this->endpoint.': '.$body);
         }
 
         return $response->object();

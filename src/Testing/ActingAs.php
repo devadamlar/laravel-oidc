@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace DevAdamlar\LaravelOidc\Testing;
 
+use DevAdamlar\LaravelOidc\Support\Alg;
+use DevAdamlar\LaravelOidc\Support\Key;
 use Firebase\JWT\JWT;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use InvalidArgumentException;
 use OpenSSLAsymmetricKey;
 
 trait ActingAs
@@ -44,12 +44,20 @@ trait ActingAs
         return parent::withToken($token, $type);
     }
 
+    /**
+     * @internal
+     */
     protected static function buildJwt(
         array $payload = [],
         ?OpenSSLAsymmetricKey $privateKey = null,
-        ?OpenSSLAsymmetricKey $publicKey = null,
-        string $encryptionAlgorithm = 'RS256',
+        Alg $signingAlgorithm = Alg::RS256,
     ): string {
+        ['private' => $privateKey, 'public' => $publicKey] = $privateKey ?
+            ['private' => $privateKey, 'public' => Key::publicKey($privateKey)] :
+            ($signingAlgorithm->isRsa() ? Key::generateRsaKeyPair() : Key::generateEcKeyPair($signingAlgorithm));
+        openssl_pkey_export($privateKey, $privateKeyPem);
+        self::storeKeys($privateKeyPem, $publicKey['key']);
+
         $baseUrl = 'http://oidc-server.test/auth';
         $payload = array_merge([
             'iss' => $baseUrl,
@@ -59,46 +67,46 @@ trait ActingAs
             'exp' => time() + 300,
             'iat' => time(),
         ], $payload);
+        self::fakeRequestsToOidcServer($payload['iss'], array_merge(['active' => true], $payload), Key::jwks([['pem' => $publicKey['key']]]));
+        $kid = Key::thumbprint($publicKey);
 
-        if (! $privateKey && ! $publicKey) {
-            $openSSLConfig = [
-                'digest_alg' => 'sha256',
-                'private_key_bits' => 1024,
-                'private_key_type' => OPENSSL_KEYTYPE_RSA,
-            ];
-            [$privateKey] = self::generateKeyPair($openSSLConfig);
-        }
-
-        $kid = self::fakeRequestsToOidcServer($payload['iss'], array_merge(['active' => true], $payload));
-
-        return JWT::encode($payload, $privateKey, $encryptionAlgorithm, $kid);
+        return JWT::encode($payload, $privateKey, $signingAlgorithm->value, $kid);
     }
 
-    protected static function generateKeyPair(?array $openSSLConfig = null): array
+    /**
+     * @internal
+     */
+    protected static function storeKeys(string $privateKeyPem, string $publicKeyPem): void
     {
-        if (! $openSSLConfig) {
-            $openSSLConfig = [
-                'digest_alg' => 'sha256',
-                'private_key_bits' => 1024,
-                'private_key_type' => OPENSSL_KEYTYPE_RSA,
-            ];
-        }
-        $privateKey = openssl_pkey_new($openSSLConfig);
-        $publicKey = openssl_pkey_get_details($privateKey)['key'];
-
         $disk = config('auth.guards.api.key_disk', config('oidc.key_disk', config('filesystems.default')));
         Storage::fake($disk);
 
-        Storage::disk($disk)->put('certs/public.pem', $publicKey);
+        foreach (config('auth.guards') as $guard) {
+            if ($guard['driver'] === 'oidc' && ! empty($guard['private_key'])) {
+                Storage::disk($disk)->put($guard['private_key'], $privateKeyPem);
+            }
+            if ($guard['driver'] === 'oidc' && ! empty($guard['public_key'])) {
+                Storage::disk($disk)->put($guard['public_key'], $publicKeyPem);
+            }
+        }
 
-        return [$privateKey, openssl_pkey_get_public($publicKey)];
+        if (! empty(config('oidc.private_key'))) {
+            Storage::disk($disk)->put(config('oidc.private_key'), $privateKeyPem);
+        }
+
+        if (! empty(config('oidc.public_key'))) {
+            Storage::disk($disk)->put(config('oidc.public_key'), $publicKeyPem);
+        }
     }
 
+    /**
+     * @internal
+     */
     protected static function fakeRequestsToOidcServer(
         string $issuer = 'http://oidc-server.test/auth',
         array $introspectionResponse = ['active' => true],
-    ): string {
-        $jwks = self::getJwks();
+        ?array $jwks = null
+    ): void {
         Http::fake([
             '*/.well-known/openid-configuration' => Http::response([
                 'issuer' => $issuer,
@@ -109,40 +117,5 @@ trait ActingAs
             '*/protocol/openid-connect/token/introspect' => Http::response($introspectionResponse),
             '*/protocol/openid-connect/certs' => Http::response($jwks),
         ]);
-
-        return $jwks['keys'][0]['kid'];
-    }
-
-    /**
-     * @throws InvalidArgumentException
-     */
-    protected static function getJwks(?string $publicKeyPem = null, string $alg = 'RS256', ?string $kid = null): array
-    {
-        $disk = config('auth.guards.api.key_disk', config('oidc.key_disk', config('filesystems.default')));
-        $publicKey = openssl_pkey_get_public($publicKeyPem ?? Storage::disk($disk)->get('certs/public.pem'));
-
-        if (! $publicKey) {
-            [, $publicKey] = self::generateKeyPair();
-        }
-
-        $details = openssl_pkey_get_details($publicKey);
-
-        return [
-            'keys' => [
-                [
-                    'kid' => $kid ?? Str::uuid()->toString(),
-                    'alg' => $alg,
-                    'use' => 'sig',
-                    'kty' => 'RSA',
-                    'n' => self::base64urlEncode($details['rsa']['n']),
-                    'e' => self::base64urlEncode($details['rsa']['e']),
-                ],
-            ],
-        ];
-    }
-
-    private static function base64urlEncode($data): string
-    {
-        return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
     }
 }

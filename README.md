@@ -6,11 +6,10 @@ It integrates smoothly with Laravel's built-in authentication system
 and offers flexibility for multi-tenant architectures by allowing configurations to be tailored on a per-guard basis.
 
 ## Installation
-1. Install the package via Composer:
    ```bash
    composer require devadamlar/laravel-oidc
    ```
-2. Publish the configuration file:
+You can publish the configuration file to make changes:
    ```bash
    php artisan vendor:publish --provider="DevAdamlar\LaravelOidc\LaravelOidcServiceProvider"
    ```
@@ -40,7 +39,7 @@ you can provide the public key directly in the configuration file avoiding the n
     'api' => [
         'driver' => 'oidc',
         'provider' => 'users',
-        'public_key' => 'your-public-key', // or '/path/to/public-key.pem'
+        'public_key' => 'base64-encoded-der', // or '/path/to/public-key.pem'
         'key_disk' => 'private-s3', // optional
     ],
 ],
@@ -50,7 +49,6 @@ but can be changed by setting `key_disk` in the guard configuration or `OIDC_KEY
 
 When both the issuer URL and the public key are set for a guard,
 the package prioritizes the public key for verifying the tokens.
-However, it will never fall back to the issuer URL if it is present.
 
 ### Authenticating Requests
 You can use the `auth` middleware with the defined guard to protect your routes.
@@ -172,8 +170,19 @@ For a guard-level configuration, set the following:
 ],
 ```
 
+#### JWKS URI Configuration
+
+When using the `private_key_jwt` auth method for token introspection, the issuer requires the RP’s public key or JWKS URI
+to verify the JWT assertion sent by the RP. You can expose the app’s JWKS,
+derived from private keys in the config file and guards, by setting a route path via `OIDC_RP_JWKS_PATH`.
+OIDC issuers can then use the route to validate JWT signatures sent during introspection.
+
+```env
+OIDC_RP_JWKS_PATH=/jwks
+```
+
 ### Caching
-The package caches the public keys fetched from the discovery document
+The package caches the public keys, discovery document
 to avoid repetitive requests to the OIDC provider.
 The cache duration is set to 24 hours by default for `production` environment
 but can be changed in the configuration files or the `.env` file.
@@ -181,19 +190,15 @@ but can be changed in the configuration files or the `.env` file.
 OIDC_CACHE_TTL=1440
 ```
 
-OPs don't usually change their public keys frequently, but if it happens, you can clear the cache to fetch the new keys:
-```bash
-php artisan cache:forget https://your-issuer-url.com
-php artisan cache:forget https://your-issuer-url.com:jwks
-```
-
 ## TODO
 
 - [ ] Place coverage, build, security, maintainability badges
+- [ ] Fix all PHPStan issues
 - [ ] Incorporate git hooks
 - [ ] Implement a CI/CD pipeline with GitHub Actions
 - [ ] Add a contribution guide
 - [ ] Dockerize the application
+- [ ] Write integration tests
 - [ ] Add a command to clear the cache
 - [ ] Add a hook for token validation check
 - [ ] Add a hook to clear the cache when the public keys change

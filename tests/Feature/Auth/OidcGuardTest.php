@@ -31,7 +31,7 @@ class OidcGuardTest extends TestCase
         return parent::getPackageProviders($app);
     }
 
-    public function test_it_can_authenticate_user_with_just_issuer()
+    public function test_it_can_authenticate_user_with_just_issuer(): void
     {
         // Arrange
         User::query()->create([
@@ -51,19 +51,19 @@ class OidcGuardTest extends TestCase
         $response->assertStatus(200);
     }
 
-    public function test_it_can_authenticate_user_with_just_a_public_key()
+    public function test_it_can_authenticate_user_with_just_a_public_key_in_guard_config(): void
     {
         // Arrange
-        $token = self::buildJwt(['sub' => 'unique-id']);
-        Cache::flush();
-        User::query()->create([
-            'auth_id' => 'unique-id',
-        ]);
         Config::set('auth.guards.api', [
             'public_key' => 'certs/public.pem',
             'issuer' => null,
             'driver' => 'oidc',
             'provider' => 'users',
+        ]);
+        $token = self::buildJwt(['sub' => 'unique-id']);
+        Cache::flush();
+        User::query()->create([
+            'auth_id' => 'unique-id',
         ]);
 
         // Act
@@ -74,7 +74,31 @@ class OidcGuardTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_it_can_authenticate_user_using_introspection()
+    public function test_it_can_authenticate_user_with_just_a_public_key_in_oidc_config(): void
+    {
+        // Arrange
+        Config::set('auth.guards.api', [
+            'public_key' => null,
+            'issuer' => null,
+            'driver' => 'oidc',
+            'provider' => 'users',
+        ]);
+        Config::set('oidc.public_key', 'certs/public.pem');
+        $token = self::buildJwt(['sub' => 'unique-id']);
+        Cache::flush();
+        User::query()->create([
+            'auth_id' => 'unique-id',
+        ]);
+
+        // Act
+        $response = $this->withToken($token)->getJson('/callback');
+
+        // Assert
+        $response->assertStatus(200);
+        Http::assertNothingSent();
+    }
+
+    public function test_it_can_authenticate_user_using_introspection(): void
     {
         // Arrange
         User::query()->create([
@@ -96,12 +120,57 @@ class OidcGuardTest extends TestCase
         $response->assertOk();
     }
 
+    public function test_it_can_authenticate_user_using_introspection_with_private_key_jwt_in_guard_config(): void
+    {
+        // Arrange
+        User::query()->create([
+            'auth_id' => 'unique-id',
+        ]);
+        Config::set('auth.guards.api', [
+            'use_introspection' => true,
+            'issuer' => 'http://oidc-server.test/auth',
+            'client_id' => 'client-id',
+            'introspection_auth_method' => 'private_key_jwt',
+            'private_key' => 'certs/private.pem',
+            'driver' => 'oidc',
+            'provider' => 'users',
+        ]);
+
+        // Act
+        $response = $this->withToken(self::buildJwt(['sub' => 'unique-id']))->getJson('/callback');
+
+        // Assert
+        $response->assertOk();
+    }
+
+    public function test_it_can_authenticate_user_using_introspection_with_private_key_jwt_in_oidc_config(): void
+    {
+        // Arrange
+        User::query()->create([
+            'auth_id' => 'unique-id',
+        ]);
+        Config::set('auth.guards.api', [
+            'use_introspection' => true,
+            'issuer' => 'http://oidc-server.test/auth',
+            'client_id' => 'client-id',
+            'introspection_auth_method' => 'private_key_jwt',
+            'private_key' => null,
+            'driver' => 'oidc',
+            'provider' => 'users',
+        ]);
+        Config::set('oidc.private_key', 'certs/private.pem');
+
+        // Act
+        $response = $this->withToken(self::buildJwt(['sub' => 'unique-id']))->getJson('/callback');
+
+        // Assert
+        $response->assertOk();
+    }
+
     /**
      * @dataProvider tokenProvider
-     *
-     * @return void
      */
-    public function test_should_not_authenticate_if_token_is_missing_or_invalid(?string $token)
+    public function test_should_not_authenticate_if_token_is_missing_or_invalid(?string $token): void
     {
         // Arrange
         Config::set('auth.guards.api', [

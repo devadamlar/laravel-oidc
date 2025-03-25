@@ -72,21 +72,30 @@ class OidcClient
     /**
      * @throws OidcServerException
      */
-    public function downloadKeys(?string $endpoint = null): array
+    public function downloadKeys(): array
     {
-        return Cache::driver($this->configLoader->get('cache_driver'))->remember(
-            'laravel-oidc:'.$this->getIssuer()->issuer.':jwks',
-            $this->configLoader->get('cache_ttl'),
-            function () use ($endpoint) {
-                $response = Http::get($endpoint ?? $this->getIssuer()->jwksUri);
+        $cache = Cache::driver($this->configLoader->get('cache_driver'));
+        $ttl = $this->configLoader->get('cache_ttl');
+        $issuer = $this->getIssuer();
 
-                if ($response->failed() || empty($response->json())) {
-                    throw new OidcServerException('Failed to fetch public keys at '.$this->getIssuer()->jwksUri.'.');
-                }
+        $response = Http::get($issuer->jwksUri);
 
-                return $response->json();
+        if ($response->failed() || empty($response->json())) {
+            throw new OidcServerException('Failed to fetch public keys at '.$issuer->jwksUri.'.');
+        }
+
+        $jwks = $response->json();
+
+        foreach ($jwks['keys'] ?? [] as $jwk) {
+            if (! isset($jwk['kid'])) {
+                continue;
             }
-        );
+
+            $cacheKey = 'laravel-oidc:'.$issuer->issuer.':jwk:'.$jwk['kid'];
+            $cache->put($cacheKey, $jwk, $ttl);
+        }
+
+        return $jwks;
     }
 
     public function introspect(string $token, ?string $endpoint = null, ?string $tokenTypeHint = 'access_token'): ?stdClass
@@ -99,12 +108,12 @@ class OidcClient
 
         $endpoint = $endpoint ?? $this->getIssuer()?->introspectionEndpoint;
 
-        $introspector = Introspector::make($this->configLoader);
-
         if ($endpoint === null) {
             throw new InvalidArgumentException('No introspection endpoint found');
         }
 
-        return $introspector->introspect($endpoint, $token, $tokenTypeHint);
+        $introspector = Introspector::make($this->configLoader, $endpoint);
+
+        return $introspector->introspect($token, $tokenTypeHint);
     }
 }

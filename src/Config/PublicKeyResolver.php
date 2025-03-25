@@ -24,7 +24,7 @@ class PublicKeyResolver
     {
         if ($this->isPath($this->publicKey)) {
             if (($material = Storage::disk($this->disk)->get($this->publicKey)) === null) {
-                throw new InvalidArgumentException('Certificate file '.$this->publicKey.' not found.');
+                throw new InvalidArgumentException('File `'.$this->publicKey.'` not found in `'.$this->disk.'` disk.');
             }
 
             return new Key($material, $this->algorithm);
@@ -40,6 +40,6 @@ class PublicKeyResolver
 
     private function buildKeyMaterial(string $material): string
     {
-        return "-----BEGIN PUBLIC KEY-----\n".wordwrap($material, 64, true)."\n-----END PUBLIC KEY-----";
+        return "-----BEGIN PUBLIC KEY-----\n".wordwrap($material, 64, cut_long_words: true)."\n-----END PUBLIC KEY-----";
     }
 }
