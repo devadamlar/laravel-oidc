@@ -13,7 +13,7 @@ class WithPrivateKeysOnlyInGuardsTest extends TestCase
         $app['config']->set('oidc.cache_driver', 'array');
         $app['config']->set('oidc.cache_ttl', 86400);
         $app['config']->set('oidc.rp_jwks_path', 'jwks');
-        $app['config']->set('oidc.rp_signing_algorithm', 'ES256');
+        $app['config']->set('oidc.signing_algorithm', 'RS256');
         $app['config']->set('auth.guards', [
             'session' => ['driver' => 'session', 'name' => 'id'],
             'jwt' => ['driver' => 'jwt', 'key' => 'key'],
@@ -77,14 +77,14 @@ PEM
     {
         // Act
         $response = $this->getJson('jwks');
-        $expectedCacheKey = 'laravel-oidc:rp:jwks:7357fe7920999b94a53d40765386a92e';
+        $expectedCacheKey = 'laravel-oidc:rp:jwks:3dc2eec0ff7ebdbd0e46d53ab03b3a2f';
         $expectedJwks = [
             'keys' => [
                 [
                     'kid' => 'F7wh0-cir65qmLcvJXuT4hjTEVcV8dQiPataxyG-Bpg',
                     'use' => 'sig',
                     'kty' => 'EC',
-                    'alg' => 'ES256',
+                    'alg' => 'RS256',
                     'crv' => 'prime256v1',
                     'x' => 'lXhKlrUC6IUl_xzigCphzTk9ZjCy775LTNI5_fZoGtg',
                     'y' => 'jIcQHAfWGstqXfBXz6Mwj4jv8RObAYN-3_6-CDrVE-4',
