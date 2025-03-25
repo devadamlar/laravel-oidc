@@ -44,6 +44,8 @@ return [
     | Public key is necessary to verify the signature of the JWT
     | so that the authenticity of the token can be ensured.
     |
+    | Supported algorithms: RS256, RS384, RS512, ES256, ES256K, ES384
+    |
     */
 
     'public_key' => env('OIDC_PUBLIC_KEY'),
@@ -71,6 +73,7 @@ return [
     |
     | `rp_signing_algorithm` will be used to sign a JWT during `private_key_jwt` introspection.
     | If omitted here and in the guard definition, the guard’s `signing_algorithm` will be used instead.
+    | Supported algorithms: RS256, RS384, RS512, ES256, ES256K, ES384
     |
     | `rp_jwks_path` can be set to expose a route path for obtaining the JWKS corresponding to
     | all private keys defined in the global config and individual guards.
