@@ -49,7 +49,9 @@ class LaravelOidcServiceProvider extends ServiceProvider
         $privateKeyPath = config('oidc.private_key');
         /** @var string|null $signingAlgorithm */
         $signingAlgorithm = config('oidc.signing_algorithm');
-        /** @var array<string, array{driver: string, private_key?: string, signing_algorithm?: string, key_disk?: string}> $guards */
+        /** @var string|null $rpSigningAlgorithm */
+        $rpSigningAlgorithm = config('oidc.rp_signing_algorithm');
+        /** @var array<string, array{driver: string, private_key?: string, signing_algorithm?: string, rp_signing_algorithm?: string, key_disk?: string}> $guards */
         $guards = config('auth.guards');
         /** @var string $disk */
         $disk = config('oidc.key_disk');
@@ -62,18 +64,25 @@ class LaravelOidcServiceProvider extends ServiceProvider
             if ($privateKeyPath !== null) {
                 $keyData->add([
                     'content' => Storage::disk($disk)->get($privateKeyPath),
-                    'alg' => $signingAlgorithm,
+                    'alg' => $rpSigningAlgorithm ?? $signingAlgorithm,
                 ]);
             }
             foreach ($guards as $guard) {
                 if ($guard['driver'] !== 'oidc' ||
-                    (! isset($guard['private_key']) && (! isset($guard['signing_algorithm']) || empty($privateKeyPath)))) {
+                    (! isset($guard['private_key']) &&
+                        (
+                            (! isset($guard['rp_signing_algorithm']) && ! isset($guard['signing_algorithm'])) ||
+                            empty($privateKeyPath)
+                        )
+                    )
+                ) {
                     continue;
                 }
                 if ($path = $guard['private_key'] ?? $privateKeyPath) {
                     $keyData->add([
                         'content' => Storage::disk($guard['key_disk'] ?? $disk)->get($path),
-                        'alg' => $guard['signing_algorithm'] ?? $signingAlgorithm,
+                        'alg' => $guard['rp_signing_algorithm'] ??
+                            ($rpSigningAlgorithm ?? ($guard['signing_algorithm'] ?? $signingAlgorithm)),
                     ]);
                 }
             }

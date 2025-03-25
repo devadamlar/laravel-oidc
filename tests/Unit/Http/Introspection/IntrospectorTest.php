@@ -190,6 +190,9 @@ class IntrospectorTest extends TestCase
         $this->configLoader->shouldReceive('get')
             ->with('signing_algorithm')
             ->andReturn('RS256');
+        $this->configLoader->shouldReceive('get')
+            ->with('rp_signing_algorithm')
+            ->andReturn('RS384');
 
         $issuer = new Issuer([
             'issuer' => 'https://introspecting-server.test',
@@ -216,7 +219,78 @@ class IntrospectorTest extends TestCase
             'exp' => now()->addMinute()->unix(),
             'nbf' => now()->unix(),
             'iat' => now()->unix(),
-        ], $this->introspectorPrivateKey, 'RS256', Key::thumbprint($publicKey));
+        ], $this->introspectorPrivateKey, 'RS384', Key::thumbprint($publicKey));
+
+        $disk = 'custom-disk';
+        Config::set('filesystems', [
+            'default' => $disk,
+            'disks' => [
+                $disk => [
+                    'driver' => 'local',
+                    'root' => storage_path('app'),
+                ],
+            ],
+        ]);
+        Config::set('oidc.key_disk', $disk);
+        $this->configLoader->shouldReceive('get')->with('key_disk')->andReturn($disk);
+
+        $introspector = Introspector::make($this->configLoader);
+
+        // Act
+        $introspector->introspect($endpoint, $token);
+
+        // Assert
+        Http::assertSent(function (Request $request) use ($endpoint, $token, $jwt) {
+            return $request->url() === $endpoint
+                && $request->isForm()
+                && $request['token'] === $token
+                && $request['client_assertion_type'] === 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
+                && $request['client_assertion'] === $jwt;
+        });
+    }
+
+    public function test_introspector_with_private_key_jwt_fallbacks_to_signing_algorithm()
+    {
+        // Arrange
+        $endpoint = 'https://introspecting-server.test/introspect';
+        $token = 'token';
+        $kid = fake()->uuid();
+        $this->configLoader->shouldReceive('get')
+            ->with('introspection_auth_method')
+            ->andReturn('private_key_jwt');
+        $this->configLoader->shouldReceive('get')
+            ->with('rp_signing_algorithm')
+            ->andReturn(null);
+        $this->configLoader->shouldReceive('get')
+            ->with('signing_algorithm')
+            ->andReturn('RS512');
+
+        $issuer = new Issuer([
+            'issuer' => 'https://introspecting-server.test',
+            'jwks_uri' => 'https://introspecting-server.test/jwks',
+            'authorization_endpoint' => 'https://introspecting-server.test/auth',
+            'token_endpoint' => 'https://introspecting-server.test/token',
+            'introspection_endpoint' => $endpoint,
+        ]);
+
+        $this->mock(OidcClient::class, function ($mock) use ($issuer) {
+            $mock->shouldReceive('getIssuer')->andReturn($issuer);
+        });
+
+        Carbon::setTestNow(now());
+        Str::createUuidsUsing(function () use ($kid) {
+            return $kid;
+        });
+        $publicKey = openssl_pkey_get_details($this->introspectorPrivateKey);
+        $jwt = JWT::encode([
+            'iss' => 'client-id',
+            'sub' => 'client-id',
+            'aud' => 'https://introspecting-server.test/token',
+            'jti' => $kid,
+            'exp' => now()->addMinute()->unix(),
+            'nbf' => now()->unix(),
+            'iat' => now()->unix(),
+        ], $this->introspectorPrivateKey, 'RS512', Key::thumbprint($publicKey));
 
         $disk = 'custom-disk';
         Config::set('filesystems', [

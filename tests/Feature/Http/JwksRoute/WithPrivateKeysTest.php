@@ -14,14 +14,14 @@ class WithPrivateKeysTest extends TestCase
         $app['config']->set('oidc.cache_ttl', 86400);
         $app['config']->set('oidc.rp_jwks_path', 'jwks');
         $app['config']->set('oidc.private_key', 'certs/private.pem');
-        $app['config']->set('oidc.signing_algorithm', 'ES256');
+        $app['config']->set('oidc.rp_signing_algorithm', 'ES256');
         $app['config']->set('auth.guards', [
             'session' => ['driver' => 'session', 'name' => 'id'],
             'jwt' => ['driver' => 'jwt', 'key' => 'key'],
             'oidc1' => ['driver' => 'oidc', 'private_key' => 'certs/guard1_private_key.pem'],
-            'oidc2' => ['driver' => 'oidc', 'private_key' => 'certs/guard2_private_key.pem', 'signing_algorithm' => 'ES384'],
-            'oidc3' => ['driver' => 'oidc', 'private_key' => 'certs/guard3_private_key.pem', 'signing_algorithm' => 'RS512'],
-            'oidc4' => ['driver' => 'oidc', 'signing_algorithm' => 'ES256K'],
+            'oidc2' => ['driver' => 'oidc', 'private_key' => 'certs/guard2_private_key.pem', 'rp_signing_algorithm' => 'ES384'],
+            'oidc3' => ['driver' => 'oidc', 'private_key' => 'certs/guard3_private_key.pem', 'rp_signing_algorithm' => 'RS512'],
+            'oidc4' => ['driver' => 'oidc', 'rp_signing_algorithm' => 'ES256K'],
             'oidc5' => ['driver' => 'oidc'],
         ]);
         Storage::fake();

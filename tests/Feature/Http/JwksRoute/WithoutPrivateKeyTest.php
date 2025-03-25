@@ -11,11 +11,11 @@ class WithoutPrivateKeyTest extends TestCase
     {
         Log::shouldReceive('warning')->with('JWKS URI is set, but no private key found.')->once();
         $app['config']->set('oidc.rp_jwks_path', 'jwks');
-        $app['config']->set('oidc.signing_algorithm', 'ES256');
+        $app['config']->set('oidc.rp_signing_algorithm', 'ES256');
         $app['config']->set('auth.guards', [
             'session' => ['driver' => 'session', 'name' => 'id'],
             'jwt' => ['driver' => 'jwt', 'key' => 'key'],
-            'oidc4' => ['driver' => 'oidc', 'signing_algorithm' => 'ES512'],
+            'oidc4' => ['driver' => 'oidc', 'rp_signing_algorithm' => 'ES512'],
             'oidc5' => ['driver' => 'oidc'],
         ]);
     }

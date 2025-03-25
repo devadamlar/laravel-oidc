@@ -69,6 +69,9 @@ return [
     | `private_key` expects the path to the private key file of the RP in PEM format
     | and MUST be set IF the `introspection_auth_method` is `private_key_jwt`.
     |
+    | `rp_signing_algorithm` will be used to sign a JWT during `private_key_jwt` introspection.
+    | If omitted here and in the guard definition, the guard’s `signing_algorithm` will be used instead.
+    |
     | `rp_jwks_path` can be set to expose a route path for obtaining the JWKS corresponding to
     | all private keys defined in the global config and individual guards.
     |
@@ -79,6 +82,7 @@ return [
     'client_id' => env('OIDC_CLIENT_ID'),
     'client_secret' => env('OIDC_CLIENT_SECRET'),
     'private_key' => env('OIDC_PRIVATE_KEY'),
+    'rp_signing_algorithm' => env('OIDC_RP_SIGNING_ALGORITHM'),
     'rp_jwks_path' => env('OIDC_RP_JWKS_PATH'),
 
     /*
