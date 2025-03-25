@@ -20,8 +20,8 @@ class WithPrivateKeysTest extends TestCase
             'jwt' => ['driver' => 'jwt', 'key' => 'key'],
             'oidc1' => ['driver' => 'oidc', 'private_key' => 'certs/guard1_private_key.pem'],
             'oidc2' => ['driver' => 'oidc', 'private_key' => 'certs/guard2_private_key.pem', 'signing_algorithm' => 'ES384'],
-            'oidc3' => ['driver' => 'oidc', 'private_key' => 'certs/guard3_private_key.pem', 'signing_algorithm' => 'PS256'],
-            'oidc4' => ['driver' => 'oidc', 'signing_algorithm' => 'ES512'],
+            'oidc3' => ['driver' => 'oidc', 'private_key' => 'certs/guard3_private_key.pem', 'signing_algorithm' => 'RS512'],
+            'oidc4' => ['driver' => 'oidc', 'signing_algorithm' => 'ES256K'],
             'oidc5' => ['driver' => 'oidc'],
         ]);
         Storage::fake();
@@ -51,34 +51,33 @@ HcOkeaMkTHdbYtIXkNSl0feRG7Y5Er0=
 PEM
         );
         Storage::put('certs/guard3_private_key.pem', <<<'PEM'
------BEGIN PRIVATE KEY-----
-MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQC7VJTUt9Us8cKj
-MzEfYyjiWA4R4/M2bS1GB4t7NXp98C3SC6dVMvDuictGeurT8jNbvJZHtCSuYEvu
-NMoSfm76oqFvAp8Gy0iz5sxjZmSnXyCdPEovGhLa0VzMaQ8s+CLOyS56YyCFGeJZ
-qgtzJ6GR3eqoYSW9b9UMvkBpZODSctWSNGj3P7jRFDO5VoTwCQAWbFnOjDfH5Ulg
-p2PKSQnSJP3AJLQNFNe7br1XbrhV//eO+t51mIpGSDCUv3E0DDFcWDTH9cXDTTlR
-ZVEiR2BwpZOOkE/Z0/BVnhZYL71oZV34bKfWjQIt6V/isSMahdsAASACp4ZTGtwi
-VuNd9tybAgMBAAECggEBAKTmjaS6tkK8BlPXClTQ2vpz/N6uxDeS35mXpqasqskV
-laAidgg/sWqpjXDbXr93otIMLlWsM+X0CqMDgSXKejLS2jx4GDjI1ZTXg++0AMJ8
-sJ74pWzVDOfmCEQ/7wXs3+cbnXhKriO8Z036q92Qc1+N87SI38nkGa0ABH9CN83H
-mQqt4fB7UdHzuIRe/me2PGhIq5ZBzj6h3BpoPGzEP+x3l9YmK8t/1cN0pqI+dQwY
-dgfGjackLu/2qH80MCF7IyQaseZUOJyKrCLtSD/Iixv/hzDEUPfOCjFDgTpzf3cw
-ta8+oE4wHCo1iI1/4TlPkwmXx4qSXtmw4aQPz7IDQvECgYEA8KNThCO2gsC2I9PQ
-DM/8Cw0O983WCDY+oi+7JPiNAJwv5DYBqEZB1QYdj06YD16XlC/HAZMsMku1na2T
-N0driwenQQWzoev3g2S7gRDoS/FCJSI3jJ+kjgtaA7Qmzlgk1TxODN+G1H91HW7t
-0l7VnL27IWyYo2qRRK3jzxqUiPUCgYEAx0oQs2reBQGMVZnApD1jeq7n4MvNLcPv
-t8b/eU9iUv6Y4Mj0Suo/AU8lYZXm8ubbqAlwz2VSVunD2tOplHyMUrtCtObAfVDU
-AhCndKaA9gApgfb3xw1IKbuQ1u4IF1FJl3VtumfQn//LiH1B3rXhcdyo3/vIttEk
-48RakUKClU8CgYEAzV7W3COOlDDcQd935DdtKBFRAPRPAlspQUnzMi5eSHMD/ISL
-DY5IiQHbIH83D4bvXq0X7qQoSBSNP7Dvv3HYuqMhf0DaegrlBuJllFVVq9qPVRnK
-xt1Il2HgxOBvbhOT+9in1BzA+YJ99UzC85O0Qz06A+CmtHEy4aZ2kj5hHjECgYEA
-mNS4+A8Fkss8Js1RieK2LniBxMgmYml3pfVLKGnzmng7H2+cwPLhPIzIuwytXywh
-2bzbsYEfYx3EoEVgMEpPhoarQnYPukrJO4gwE2o5Te6T5mJSZGlQJQj9q4ZB2Dfz
-et6INsK0oG8XVGXSpQvQh3RUYekCZQkBBFcpqWpbIEsCgYAnM3DQf3FJoSnXaMhr
-VBIovic5l0xFkEHskAjFTevO86Fsz1C2aSeRKSqGFoOQ0tmJzBEs1R6KqnHInicD
-TQrKhArgLXX4v3CddjfTRJkFWDbE/CkvKZNOrcf1nhaGCPspRJj2KUkj1Fhl9Cnc
-dn/RsYEONbwQSjIfMPkvxF+8HQ==
------END PRIVATE KEY-----
+-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEAvz9igQWiA5UsMMi9nc9U1iqwUoIw1M8JUsi8L6CHfO20C6DY
+LFex8n+FFXItz6MG5W8ovzkRRFOgTelEooe2DKMUzlke+La+ZI+E2kUU4T2GAlWf
+7M4mlKw+JuaZXcR2HZrm4WaohukLxR9UtvmBuQsoiWfVx8f4PZsfxkYoKvzSGZg6
+ZFsPw62CXdUaOzo415IL4nQyJKiQaza451Qs4SCyerXlPF8W+47S3ZeWYx4U49WE
+AA6vxSIdIYoDviwVOAtAd5jBSFHSAaZV3ngyjoWoKDVe/q0NGa9rtwGMSBtPcHtv
+CV8ncNzsG+KN1FEqtnSq3VcP+bdvaBrvzZMwcQIDAQABAoIBADPBq57PL3FYxYTO
+TsKOgZ8UHnO12BE/ln5Y5NTe1MvyaG9dMCOP+BBwgkuzgsJWlF8zHgviHdIn75Im
+NvTlVVdGKzNM2xzkF9KPJJ0NZQEv7Txkf8tOXxKNKqTMc2T07iJE8Ya+iY05NH48
+ZGjATWMOqgHFoA1ZCM1jVc4K3oQDPuwZDD2eW/9/nOZFjCDs8kr5QsLU+SCjALx5
+2NEy1hoq2fOstCGpEBK9CJzYsJTbdnERGIHDLise0rwQ/3UIKYb5BvxZhw64AO3h
+/wOv8Bh1pQCMKCSfbBTmPZB0Yot/DMAQtiDEeFYCQ8zYSNFx43K2pQ9QB8/c8AEC
+KbxHsKECgYEA/FmlX7SyP9dK7XtcTAqsdHFu5+OmQQOQhxVIZOgxLakUWyBHS7Vk
+KWfp0dS1qJ4OJHUxubzAmuVMEyQaLxqe44BxD22dlQ7x0e5a4ZA1NiSOItDr9KZO
+2LTlQa3UAbSWPnUpDleXlQc0BuMaQeOIqRs0+WG2ga22yutZIfO3SGMCgYEAwgN/
+9JItPAkV2Fm37wFtCtZwigNPyj/7CIjumR65HqufC72kLmS5xvRV+SfPYAGgWKMv
+mmqgpQHT/dLjtod/W8LhsqK+CgqB1qbTLY4h6BXSJRBe4hPmVdFqLASH6X7T0HIt
+rxQCGZgKrGw5QuipQiVwFD2Lqw0Ah2sPA8xxmhsCgYEAvlh4b3qDQbiJohx9ADbE
+4oh1maCT1VJ1AA/Drame/swcuKfeX3MRfFIPguEprWibTlDAE1QXDD+NZJrEzWcN
+FpnZrkOGq9q7+RgLoTz/hjmIpSZl9QJFUx0QGLyfwDGRasdBErprclQeoFtJgQ26
+FaSaDsnvul1oFiPz9bI6O/UCgYAB4f7P5MtDleL8YoKCc0UXodUdwcJ4d/57qriG
+C+JIBepZNtHtEVUsNRrQfC5rBBkGQy8nFHnSoB3qjK1hDBeUUGPYU/P8LPXtm1jZ
+TFPP6MZNTcdd8kt98bZSDwkynuR3VWRUGqGalfskiThVCeT6m1pnF+HPGyUyKzvO
+EaHYmQKBgBD6ZCHsWJ7xGLiL7L067TprxL+VxinP/EfNHsSBCrTyKMhZCVSuSh6E
+8IYoQqHGF0y6gRZ431oPxAZMu/XItB8s/8TXmoYxB6PPEaFpimf/NatH6NccbcXY
+qN1RuLvm9IjLMmXps4slvZA49GaMdjoK+tfxd6qtkDtMlW0Cxg8a
+-----END RSA PRIVATE KEY-----
 PEM
         );
     }
@@ -87,7 +86,7 @@ PEM
     {
         // Act
         $response = $this->getJson('jwks');
-        $expectedCacheKey = 'laravel-oidc:rp:jwks:8ddf8b2db6ff812f0f7fb660dc46d1a2';
+        $expectedCacheKey = 'laravel-oidc:rp:jwks:888e7f2e731c47431349feefbd23ee62';
         $expectedJwks = [
             'keys' => [
                 [
@@ -118,18 +117,18 @@ PEM
                     'y' => 'pp8xE1ZYOhBa2AC13kCg6lCIr3bI8Ofjbh3DpHmjJEx3W2LSF5DUpdH3kRu2ORK9',
                 ],
                 [
-                    'kid' => 'oGDmHqCJ7yzMkWEkrlZVHkvrHIyQwtlDmeq5ForUHeY',
+                    'kid' => 'HCSjgErl6G3OXNTnx5WCUU4BnlUpp6q4KYHTO959_60',
                     'use' => 'sig',
                     'kty' => 'RSA',
-                    'alg' => 'PS256',
-                    'n' => 'u1SU1LfVLPHCozMxH2Mo4lgOEePzNm0tRgeLezV6ffAt0gunVTLw7onLRnrq0_IzW7yWR7QkrmBL7jTKEn5u-qKhbwKfBstIs-bMY2Zkp18gnTxKLxoS2tFczGkPLPgizskuemMghRniWaoLcyehkd3qqGElvW_VDL5AaWTg0nLVkjRo9z-40RQzuVaE8AkAFmxZzow3x-VJYKdjykkJ0iT9wCS0DRTXu269V264Vf_3jvredZiKRkgwlL9xNAwxXFg0x_XFw005UWVRIkdgcKWTjpBP2dPwVZ4WWC-9aGVd-Gyn1o0CLelf4rEjGoXbAAEgAqeGUxrcIlbjXfbcmw',
+                    'alg' => 'RS512',
+                    'n' => 'vz9igQWiA5UsMMi9nc9U1iqwUoIw1M8JUsi8L6CHfO20C6DYLFex8n-FFXItz6MG5W8ovzkRRFOgTelEooe2DKMUzlke-La-ZI-E2kUU4T2GAlWf7M4mlKw-JuaZXcR2HZrm4WaohukLxR9UtvmBuQsoiWfVx8f4PZsfxkYoKvzSGZg6ZFsPw62CXdUaOzo415IL4nQyJKiQaza451Qs4SCyerXlPF8W-47S3ZeWYx4U49WEAA6vxSIdIYoDviwVOAtAd5jBSFHSAaZV3ngyjoWoKDVe_q0NGa9rtwGMSBtPcHtvCV8ncNzsG-KN1FEqtnSq3VcP-bdvaBrvzZMwcQ',
                     'e' => 'AQAB',
                 ],
                 [
                     'kid' => 'VrUsVk0eLNVAMnejOiLLccHcixeqjj1wAHPjm3Hu6dM',
                     'use' => 'sig',
                     'kty' => 'EC',
-                    'alg' => 'ES512',
+                    'alg' => 'ES256K',
                     'crv' => 'prime256v1',
                     'x' => 'EVs_o5-uQbTjL3chynL4wXgUg2R9q9UU8I5mEovUf84',
                     'y' => 'kGe5DgSIycKp8w9aJmoHhB1sB3QTugfnRWm5nU_TzsY',

@@ -21,7 +21,6 @@ class AlgTest extends TestCase
         return [
             [Alg::ES256, true],
             [Alg::ES384, true],
-            [Alg::ES512, true],
             [Alg::ES256K, true],
             [Alg::RS256, false],
             [Alg::RS384, false],

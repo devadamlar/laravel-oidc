@@ -172,7 +172,6 @@ class Key
         $curve = match ($alg) {
             Alg::ES256 => 'prime256v1',
             Alg::ES384 => 'secp384r1',
-            Alg::ES512 => 'secp521r1',
             Alg::ES256K => 'secp256k1',
         };
 
