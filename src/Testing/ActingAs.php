@@ -44,6 +44,9 @@ trait ActingAs
         return parent::withToken($token, $type);
     }
 
+    /**
+     * @internal
+     */
     protected static function buildJwt(
         array $payload = [],
         ?OpenSSLAsymmetricKey $privateKey = null,
@@ -70,6 +73,9 @@ trait ActingAs
         return JWT::encode($payload, $privateKey, $signingAlgorithm->value, $kid);
     }
 
+    /**
+     * @internal
+     */
     protected static function storeKeys(string $privateKeyPem, string $publicKeyPem): void
     {
         $disk = config('auth.guards.api.key_disk', config('oidc.key_disk', config('filesystems.default')));
@@ -93,6 +99,9 @@ trait ActingAs
         }
     }
 
+    /**
+     * @internal
+     */
     protected static function fakeRequestsToOidcServer(
         string $issuer = 'http://oidc-server.test/auth',
         array $introspectionResponse = ['active' => true],

@@ -126,6 +126,8 @@ class Key
     }
 
     /**
+     * @internal
+     *
      * @return array{type: int, key: string, rsa?: array{n: string, e: string}, ec?: array{curve_name?: string, x: string, y: string}}
      */
     public static function publicKey(OpenSSLAsymmetricKey|string $privateKey): array
@@ -146,6 +148,8 @@ class Key
     }
 
     /**
+     * @internal
+     *
      * @return array{private: OpenSSLAsymmetricKey, public: array{type: int, key: string, rsa?: array{n: string, e: string}, ec?: array{curve_name?: string, x: string, y: string}}}
      */
     public static function generateRsaKeyPair(): array
@@ -165,6 +169,8 @@ class Key
     }
 
     /**
+     * @internal
+     *
      * @return array{private: OpenSSLAsymmetricKey, public: array{type: int, key: string, rsa?: array{n: string, e: string}, ec?: array{curve_name?: string, x: string, y: string}}}
      */
     public static function generateEcKeyPair(Alg $alg): array
